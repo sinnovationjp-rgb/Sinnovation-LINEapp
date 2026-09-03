@@ -10,9 +10,9 @@ Claude Codeへの依頼は1フェーズずつ進めるのがおすすめです�
 > CLAUDE.mdの構成に沿って、frontend/とgas/のディレクトリと各ファイルの雛形を作成して。
 
 ## Phase 2: フロントエンド — トップ画面 & 予約画面
-- [ ] index.html: liff.init()でuserId取得、「新規予約」ボタンを配置したポータルUI
-- [ ] reserve.html: FullCalendarで空き状況を表示、予約フォーム（日時/人数/コース・プラン/氏名/電話番号/備考）
-- [ ] reserve-form.js: 現時点ではダミーJSONでカレンダーが色分け表示されればOK（バックエンドは次フェーズ）
+- [x] index.html: liff.init()でuserId取得、「新規予約」ボタンを配置したポータルUI
+- [x] reserve.html: FullCalendarで空き状況を表示、予約フォーム（日時/人数/コース・プラン/氏名/電話番号/備考）
+- [x] reserve-form.js: 現時点ではダミーJSONでカレンダーが色分け表示されればOK（バックエンドは次フェーズ）
 
 **依頼例:**
 > reserve.htmlにFullCalendarを組み込んで、{date, available}形式のJSON配列をもとに予約可能日を色分け表示して。バックエンドはまだないのでダミーデータで動くようにして。

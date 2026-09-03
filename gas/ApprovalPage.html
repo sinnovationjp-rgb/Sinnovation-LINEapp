@@ -1,10 +1,62 @@
-<!-- Phase 4 で実装（承認画面） -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <title>予約承認</title>
+  <style>
+    body { font-family: sans-serif; max-width: 480px; margin: 24px auto; padding: 0 16px; }
+    label { display: block; margin-bottom: 12px; font-size: 0.9rem; }
+    input, textarea { display: block; width: 100%; margin-top: 4px; padding: 8px; box-sizing: border-box; }
+    button { padding: 12px 24px; margin-top: 16px; }
+    #result { margin-top: 16px; font-weight: bold; }
+  </style>
 </head>
 <body>
+  <h1>予約承認</h1>
+  <p id="not-found" style="display:none; color:#b00;">予約が見つかりませんでした。</p>
+
+  <form id="approval-form">
+    <label>日時 <input type="text" name="予約日時"></label>
+    <label>人数 <input type="text" name="人数"></label>
+    <label>プラン <input type="text" name="プラン"></label>
+    <label>氏名 <input type="text" name="氏名"></label>
+    <label>電話番号 <input type="text" name="電話番号"></label>
+    <label>備考 <textarea name="備考"></textarea></label>
+    <button type="submit">承認して確定</button>
+  </form>
+  <p id="result"></p>
+
+  <script>
+    const reservationId = <?!= toSafeJson_(reservationId) ?>;
+    const reservation = <?!= toSafeJson_(reservation) ?>;
+    const form = document.getElementById('approval-form');
+
+    if (!reservation) {
+      document.getElementById('not-found').style.display = 'block';
+      form.style.display = 'none';
+    } else {
+      Object.keys(reservation).forEach((key) => {
+        const field = form.elements[key];
+        if (field) field.value = reservation[key];
+      });
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const editedData = Object.fromEntries(formData.entries());
+      const resultEl = document.getElementById('result');
+      resultEl.textContent = '処理中...';
+
+      google.script.run
+        .withSuccessHandler((res) => {
+          resultEl.textContent = res.success ? '確定しました' : `エラー: ${res.error}`;
+        })
+        .withFailureHandler((err) => {
+          resultEl.textContent = `エラー: ${err.message}`;
+        })
+        .approveReservation(reservationId, editedData);
+    });
+  </script>
 </body>
 </html>

@@ -39,7 +39,21 @@ var CalendarService = (function () {
     return result;
   }
 
+  function createEvent(reservation) {
+    try {
+      const calendar = CalendarApp.getCalendarById(getCalendarId_());
+      const start = new Date(reservation.datetime);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+      const title = `${reservation.plan || ''} - ${reservation.name || ''}様（${reservation.headcount || ''}名）`;
+      return calendar.createEvent(title, start, end, { description: reservation.note || '' });
+    } catch (err) {
+      console.error('CalendarService.createEvent failed', err);
+      throw err;
+    }
+  }
+
   return {
-    getAvailability: getAvailability
+    getAvailability: getAvailability,
+    createEvent: createEvent
   };
 })();

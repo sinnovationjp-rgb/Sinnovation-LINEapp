@@ -29,15 +29,15 @@ Claude Codeへの依頼は1フェーズずつ進めるのがおすすめです�
 > gas/Code.jsにdoGet/doPostを実装して。doGetはCalendarService経由で向こう30日分の空き状況を返し、doPostは受け取った予約データをSheetServiceで「仮予約」として書き込んだ上でNotifyServiceでDiscordに承認URL付きで通知して。シークレットは全部PropertiesService.getScriptProperties()から読むようにして。
 
 ## Phase 4: 承認画面 & 確定処理
-- [ ] ApprovalPage.html: Discord通知のリンクから開く内容確認・修正フォーム
-- [ ] 承認ボタンはgoogle.script.runでサーバー関数approveReservation()を直接呼ぶ
-- [ ] approveReservation(): ステータスを「確定」に更新 → カレンダーへ正式登録 → Discordに確定報告 → LINE Messaging APIでユーザーへ確定通知をプッシュ
+- [x] ApprovalPage.html: Discord通知のリンクから開く内容確認・修正フォーム
+- [x] 承認ボタンはgoogle.script.runでサーバー関数approveReservation()を直接呼ぶ
+- [x] approveReservation(): ステータスを「確定」に更新 → カレンダーへ正式登録 → Discordに確定報告 → LINE Messaging APIでユーザーへ確定通知をプッシュ
 
 **依頼例:**
 > ApprovalPage.htmlと、google.script.runで呼び出すapproveReservation()関数を実装して。承認時にSheetServiceでステータスを「確定」に更新し、CalendarServiceでカレンダー予定を作成し、NotifyServiceで確定報告をDiscordに送り、LineServiceでユーザーに確定通知をプッシュ送信して。
 
 ## Phase 5: リマインド機能
-- [ ] Trigger.js: 「確定」かつ「翌日（または当日）」の予約を抽出してLINE・Discordにリマインド送信する関数
+- [x] Trigger.js: 「確定」かつ「翌日（または当日）」の予約を抽出してLINE・Discordにリマインド送信する関数
 - [ ] トリガー登録用のセットアップ関数（例: createDailyTrigger()）を用意し、GASエディタで一度だけ手動実行
 
 **依頼例:**

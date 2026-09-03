@@ -67,17 +67,47 @@ var SheetService = (function () {
     }
   }
 
-  function updateStatus(id, status) {
+  function updateReservation(id, updates) {
     try {
       const sheet = getSheet_();
       const found = findRowById_(sheet, id);
       if (!found) {
         throw new Error(`予約ID ${id} が見つかりません`);
       }
-      const statusColumn = HEADERS.indexOf('ステータス') + 1;
-      sheet.getRange(found.rowIndex, statusColumn).setValue(status);
+      Object.keys(updates).forEach((key) => {
+        const col = HEADERS.indexOf(key);
+        if (col === -1) return;
+        sheet.getRange(found.rowIndex, col + 1).setValue(updates[key]);
+      });
     } catch (err) {
-      console.error('SheetService.updateStatus failed', err);
+      console.error('SheetService.updateReservation failed', err);
+      throw err;
+    }
+  }
+
+  function formatDateOnly_(value) {
+    if (!value) return '';
+    const date = value instanceof Date ? value : new Date(value);
+    if (isNaN(date.getTime())) return '';
+    return Utilities.formatDate(date, 'Asia/Tokyo', 'yyyy-MM-dd');
+  }
+
+  function getConfirmedReservationsForDate(dateStr) {
+    try {
+      const sheet = getSheet_();
+      const values = sheet.getDataRange().getValues();
+      const headers = values[0];
+      const results = [];
+      for (let i = 1; i < values.length; i++) {
+        const obj = rowToObject_(headers, values[i]);
+        if (obj['ステータス'] !== '確定') continue;
+        if (formatDateOnly_(obj['予約日時']) === dateStr) {
+          results.push(obj);
+        }
+      }
+      return results;
+    } catch (err) {
+      console.error('SheetService.getConfirmedReservationsForDate failed', err);
       throw err;
     }
   }
@@ -85,6 +115,7 @@ var SheetService = (function () {
   return {
     addProvisionalReservation: addProvisionalReservation,
     getReservationById: getReservationById,
-    updateStatus: updateStatus
+    updateReservation: updateReservation,
+    getConfirmedReservationsForDate: getConfirmedReservationsForDate
   };
 })();

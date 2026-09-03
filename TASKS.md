@@ -18,12 +18,12 @@ Claude Codeへの依頼は1フェーズずつ進めるのがおすすめです�
 > reserve.htmlにFullCalendarを組み込んで、{date, available}形式のJSON配列をもとに予約可能日を色分け表示して。バックエンドはまだないのでダミーデータで動くようにして。
 
 ## Phase 3: GASバックエンド — doGet/doPost
-- [ ] Code.js: doGet（空き状況JSON、または?page=approvalで承認画面を返すルーティング）／doPost（仮予約受信）
-- [ ] CalendarService.js: Googleカレンダーから空き状況を判定
-- [ ] SheetService.js: スプレッドシートの読み書き
-- [ ] NotifyService.js: Discord/Slack Webhook送信を共通化
-- [ ] シークレットはPropertiesServiceから読む設計にする
-- [ ] フロント側のfetchはContent-Type: text/plainでPOSTし、GAS側でJSON.parse(e.postData.contents)する（CORS対策、CLAUDE.md参照）
+- [x] Code.js: doGet（空き状況JSON、または?page=approvalで承認画面を返すルーティング）／doPost（仮予約受信）
+- [x] CalendarService.js: Googleカレンダーから空き状況を判定
+- [x] SheetService.js: スプレッドシートの読み書き
+- [x] NotifyService.js: Discord/Slack Webhook送信を共通化
+- [x] シークレットはPropertiesServiceから読む設計にする
+- [x] フロント側のfetchはContent-Type: text/plainでPOSTし、GAS側でJSON.parse(e.postData.contents)する（CORS対策、CLAUDE.md参照）
 
 **依頼例:**
 > gas/Code.jsにdoGet/doPostを実装して。doGetはCalendarService経由で向こう30日分の空き状況を返し、doPostは受け取った予約データをSheetServiceで「仮予約」として書き込んだ上でNotifyServiceでDiscordに承認URL付きで通知して。シークレットは全部PropertiesService.getScriptProperties()から読むようにして。

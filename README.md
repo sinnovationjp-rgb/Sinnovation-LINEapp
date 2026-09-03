@@ -1,0 +1,2 @@
+# Sinnovation-LINEapp
+エスイノベーション株式会社のOoスペース予約をLINEから行うためのLIFFアプリ

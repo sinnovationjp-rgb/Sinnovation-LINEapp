@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>予約 - SPACE予約</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="reserve">
+    <h1>予約</h1>
+    <div id="calendar"></div>
+
+    <form id="reserve-form">
+      <label>日時 <input type="datetime-local" name="datetime" required></label>
+      <label>人数 <input type="number" name="headcount" min="1" required></label>
+      <label>コース・プラン <input type="text" name="plan" required></label>
+      <label>氏名 <input type="text" name="name" required></label>
+      <label>電話番号 <input type="tel" name="phone" required></label>
+      <label>備考 <textarea name="note"></textarea></label>
+      <button type="submit">予約する</button>
+    </form>
+  </main>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="js/liff-init.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/reserve-form.js"></script>
+</body>
+</html>

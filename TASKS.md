@@ -3,8 +3,8 @@
 Claude Codeへの依頼は1フェーズずつ進めるのがおすすめです。フェーズ内でも欲張らず、まず動くものを作ってから細部を詰めましょう。各フェーズの前提としてCLAUDE.mdのアーキテクチャ節を参照してください。
 
 ## Phase 1: プロジェクト初期化
-- [ ] frontend/ と gas/ のディレクトリ雛形・空ファイル一式を作成
-- [ ] gas/appsscript.json、.gitignore を配置
+- [x] frontend/ と gas/ のディレクトリ雛形・空ファイル一式を作成
+- [x] gas/appsscript.json、.gitignore を配置
 
 **依頼例:**
 > CLAUDE.mdの構成に沿って、frontend/とgas/のディレクトリと各ファイルの雛形を作成して。

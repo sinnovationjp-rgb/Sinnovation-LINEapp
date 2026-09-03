@@ -8,6 +8,9 @@ var CalendarService = (function () {
     let calendar;
     try {
       calendar = CalendarApp.getCalendarById(getCalendarId_());
+      if (!calendar) {
+        console.error('CalendarService.getAvailability: CALENDAR_IDのカレンダーが見つからないかアクセス権がありません');
+      }
     } catch (err) {
       console.error('CalendarService.getAvailability: カレンダー取得に失敗しました', err);
       calendar = null;

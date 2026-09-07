@@ -50,7 +50,8 @@ var CalendarService = (function () {
       }
       const start = new Date(reservation.datetime);
       const end = new Date(start.getTime() + 60 * 60 * 1000);
-      const title = `${reservation.plan || ''} - ${reservation.name || ''}様（${reservation.headcount || ''}名）`;
+      const drinkLabel = reservation.allYouCanDrink ? `／飲み放題${reservation.allYouCanDrink}` : '';
+      const title = `${reservation.name || ''}様（${reservation.headcount || ''}名${drinkLabel}）`;
       return calendar.createEvent(title, start, end, { description: reservation.note || '' });
     } catch (err) {
       console.error('CalendarService.createEvent failed', err);

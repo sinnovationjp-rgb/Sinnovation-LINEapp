@@ -44,7 +44,8 @@ Claude Codeへの依頼は1フェーズずつ進めるのがおすすめです�
 > Trigger.jsに毎朝実行を想定したsendReminders()を実装して。SheetServiceで「確定」かつ予約日が翌日のデータを抽出し、LineServiceとNotifyServiceでリマインドを送信して。あわせてトリガーを登録するcreateDailyTrigger()も用意して。
 
 ## Phase 6: 結合テスト & デプロイ
-- [ ] clasp push / clasp deploy でGASを公開
-- [ ] 発行されたWebアプリURLをフロントエンドのAPIエンドポイントに設定
-- [ ] GitHub PagesのURLをLINE DevelopersのLIFFエンドポイントURLに登録
+- [x] clasp push / clasp deploy でGASを公開（テスト用アカウントで実施）
+- [x] 発行されたWebアプリURLをフロントエンドのAPIエンドポイントに設定
+- [x] GitHub PagesのURLをLINE DevelopersのLIFFエンドポイントURLに登録
 - [ ] 予約→Discord通知→承認→カレンダー登録→LINE確定通知→リマインドの一連の流れを実機で確認
+  - カレンダー・スプレッドシートへのGAS実行アカウントの共有待ち（詳細はやり取り参照）

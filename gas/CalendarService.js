@@ -45,6 +45,9 @@ var CalendarService = (function () {
   function createEvent(reservation) {
     try {
       const calendar = CalendarApp.getCalendarById(getCalendarId_());
+      if (!calendar) {
+        throw new Error('CALENDAR_IDのカレンダーが見つからないかアクセス権がありません');
+      }
       const start = new Date(reservation.datetime);
       const end = new Date(start.getTime() + 60 * 60 * 1000);
       const title = `${reservation.plan || ''} - ${reservation.name || ''}様（${reservation.headcount || ''}名）`;

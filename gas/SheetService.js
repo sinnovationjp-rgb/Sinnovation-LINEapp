@@ -11,6 +11,13 @@ var SheetService = (function () {
     }
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(HEADERS);
+    } else {
+      const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      const headersMatch = HEADERS.length === currentHeaders.length &&
+        HEADERS.every((h, i) => h === currentHeaders[i]);
+      if (!headersMatch) {
+        sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+      }
     }
     return sheet;
   }

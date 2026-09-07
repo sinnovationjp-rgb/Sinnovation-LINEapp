@@ -116,10 +116,40 @@ var SheetService = (function () {
     }
   }
 
+  function getAvailability(daysAhead) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const bookedDates = new Set();
+    try {
+      const sheet = getSheet_();
+      const values = sheet.getDataRange().getValues();
+      const headers = values[0];
+      for (let i = 1; i < values.length; i++) {
+        const obj = rowToObject_(headers, values[i]);
+        if (obj['ステータス'] !== '確定') continue;
+        const dateStr = formatDateOnly_(obj['予約日時']);
+        if (dateStr) bookedDates.add(dateStr);
+      }
+    } catch (err) {
+      console.error('SheetService.getAvailability: 予約データの取得に失敗しました', err);
+    }
+
+    const result = [];
+    for (let i = 0; i < daysAhead; i++) {
+      const day = new Date(today);
+      day.setDate(today.getDate() + i);
+      const dateStr = Utilities.formatDate(day, 'Asia/Tokyo', 'yyyy-MM-dd');
+      result.push({ date: dateStr, available: !bookedDates.has(dateStr) });
+    }
+    return result;
+  }
+
   return {
     addProvisionalReservation: addProvisionalReservation,
     getReservationById: getReservationById,
     updateReservation: updateReservation,
-    getConfirmedReservationsForDate: getConfirmedReservationsForDate
+    getConfirmedReservationsForDate: getConfirmedReservationsForDate,
+    getAvailability: getAvailability
   };
 })();

@@ -7,7 +7,7 @@ LINE LIFFを使ったスペース予約システムをClaude Codeで構築する
 作業は大きく2種類に分かれます。
 
 - **Claude Codeが書ける部分**：フロントエンド(HTML/CSS/JS)、GASのコード、Git操作全般
-- **人がブラウザで手動設定する部分**：LINE DevelopersでのLIFFアプリ発行、Googleカレンダー・スプレッドシートの作成、Discord/SlackのWebhook発行、GitHub Pagesの有効化、claspのログイン認証
+- **人がブラウザで手動設定する部分**：LINE DevelopersでのLIFFアプリ発行、Googleスプレッドシートの作成、Discord/SlackのWebhook発行、GitHub Pagesの有効化、claspのログイン認証
 
 後者はOAuth認証やAPIキー発行が絡むため自動化できません。先に済ませてからClaude Codeでの実装に入るとスムーズです。
 
@@ -15,7 +15,6 @@ LINE LIFFを使ったスペース予約システムをClaude Codeで構築する
 
 - [x] GitHubリポジトリを作成
 - [ ] LINE Developersで LIFFアプリを発行し、LIFF IDを控える（担当: 川合）
-- [x] Googleカレンダーで予約用の公開カレンダーを作成し、カレンダーIDを控える（担当: 川合）
 - [x] Googleスプレッドシートで予約管理台帳「SPACE予約管理」を作成し、スプレッドシートIDを控える（担当: 川合）
 - [ ] Discordの「#予約状況」チャンネルのWebhook URLを発行（初期はSlack Webhookで代用可）
 - [ ] LINE公式アカウントのMessaging APIチャネルアクセストークンを発行
@@ -61,8 +60,8 @@ line-space-reservation/
 ├── frontend/
 │   ├── index.html
 │   ├── reserve.html
-│   ├── complete.html
 │   ├── css/style.css
+│   ├── img/（店舗写真）
 │   └── js/
 │       ├── liff-init.js
 │       ├── calendar.js
@@ -70,7 +69,6 @@ line-space-reservation/
 ├── gas/
 │   ├── appsscript.json
 │   ├── Code.js
-│   ├── CalendarService.js
 │   ├── SheetService.js
 │   ├── NotifyService.js
 │   ├── LineService.js

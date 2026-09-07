@@ -2,7 +2,7 @@ function doGet(e) {
   if (e.parameter && e.parameter.page === 'approval' && e.parameter.id) {
     return renderApprovalPage_(e.parameter.id);
   }
-  const availability = CalendarService.getAvailability(30);
+  const availability = SheetService.getAvailability(30);
   return jsonResponse_(availability);
 }
 
@@ -47,15 +47,6 @@ function approveReservation(id, editedData) {
       '電話番号': confirmed['電話番号'],
       'メールアドレス': confirmed['メールアドレス'],
       '備考': confirmed['備考']
-    });
-
-    CalendarService.createEvent({
-      datetime: confirmed['予約日時'],
-      headcount: confirmed['人数'],
-      space: confirmed['スペース'],
-      drink: confirmed['飲み放題'],
-      name: confirmed['氏名'],
-      note: confirmed['備考']
     });
 
     NotifyService.send(buildConfirmedMessage_(confirmed));

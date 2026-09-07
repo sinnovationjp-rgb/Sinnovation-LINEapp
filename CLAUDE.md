@@ -3,13 +3,12 @@
 Claude Codeがこのリポジトリで作業する際に毎回自動で読み込むプロジェクトコンテキストです。
 
 ## プロジェクト概要
-LINE公式アカウントのLIFFを使ったスペース予約システム。ユーザーがLINE上から予約 → GASがスプレッドシートに仮登録しつつDiscordへ通知 → スタッフが承認画面で確認・確定 → Googleカレンダーへ正式登録 & LINEで確定通知 → 前日リマインドを自動送信、という流れを全コンポーネント無料枠で構築します。元の要件定義は`docs/spec.md`参照。
+LINE公式アカウントのLIFFを使ったスペース予約システム。ユーザーがLINE上から予約 → GASがスプレッドシートに仮登録しつつDiscordへ通知 → スタッフが承認画面で確認・確定 → LINEで確定通知 → 前日リマインドを自動送信、という流れを全コンポーネント無料枠で構築します。元の要件定義は`docs/spec.md`参照。
 
 ## アーキテクチャ
-- フロントエンド: 素のHTML/CSS/JS + FullCalendar。ビルドステップなし。GitHub Pagesで公開（HTTPS必須、LIFFの要件）。
+- フロントエンド: 素のHTML/CSS/JS。ビルドステップなし。GitHub Pagesで公開（HTTPS必須、LIFFの要件）。
 - バックエンド: Google Apps Script (GAS) のWeb App一本（doGet/doPost）。
-- DB: Googleスプレッドシート（予約管理台帳）
-- カレンダー: Googleカレンダー
+- DB: Googleスプレッドシート（予約管理台帳）。空き状況判定・確定記録もすべてここで完結し、Googleカレンダーには依存しない
 - 通知: Discord Webhook（初期はSlack Webhookで代用可） / LINE Messaging API
 
 ### GAS側のルーティング設計
@@ -26,13 +25,13 @@ GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フ
 時限トリガーは`clasp push`だけでは有効化されません。トリガー登録用のセットアップ関数（例: `createDailyTrigger()`）を用意し、GASエディタで初回のみ手動実行してください。
 
 ## シークレット管理
-GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートID、カレンダーIDは必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
+GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートIDは必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
 
 ## ディレクトリ構成
 README.mdの構成図を参照してください（gas/配下はclaspでプッシュする対象）。
 
 ## コーディング規約
-- GAS側は関心事ごとにファイル分割（Code.js / CalendarService.js / SheetService.js / NotifyService.js / LineService.js / Trigger.js）
+- GAS側は関心事ごとにファイル分割（Code.js / SheetService.js / NotifyService.js / LineService.js / Trigger.js）
 - NotifyService.jsはDiscordとSlackのWebhook形式差異を吸収する共通インターフェースにする
 - 外部API呼び出しは必ずtry/catchし、失敗時はログを残す
 - フロントは1画面1HTMLファイル。共通処理はjs/に切り出す

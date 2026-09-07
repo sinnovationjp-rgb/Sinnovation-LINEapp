@@ -8,27 +8,40 @@
     label { display: block; margin-bottom: 12px; font-size: 0.9rem; }
     input, textarea { display: block; width: 100%; margin-top: 4px; padding: 8px; box-sizing: border-box; }
     button { padding: 12px 24px; margin-top: 16px; }
-    #result { margin-top: 16px; font-weight: bold; }
+    #result { margin-top: 16px; font-weight: bold; color: #b00; }
+    #done-screen { display: none; text-align: center; padding: 60px 0; }
+    #done-screen .icon {
+      width: 56px; height: 56px; border-radius: 50%; background: #e7f8ee; color: #06c755;
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 1.6rem;
+    }
   </style>
 </head>
 <body>
-  <h1>予約承認</h1>
-  <p id="not-found" style="display:none; color:#b00;">予約が見つかりませんでした。</p>
+  <div id="form-screen">
+    <h1>予約承認</h1>
+    <p id="not-found" style="display:none; color:#b00;">予約が見つかりませんでした。</p>
 
-  <form id="approval-form">
-    <label>日時 <input type="text" name="予約日時"></label>
-    <label>人数 <input type="text" name="人数"></label>
-    <label>スペース <input type="text" name="スペース"></label>
-    <label>飲み放題 <input type="text" name="飲み放題"></label>
-    <label>ご利用履歴 <input type="text" name="ご利用履歴"></label>
-    <label>氏名 <input type="text" name="氏名"></label>
-    <label>フリガナ <input type="text" name="フリガナ"></label>
-    <label>電話番号 <input type="text" name="電話番号"></label>
-    <label>メールアドレス <input type="text" name="メールアドレス"></label>
-    <label>備考 <textarea name="備考"></textarea></label>
-    <button type="submit">承認して確定</button>
-  </form>
-  <p id="result"></p>
+    <form id="approval-form">
+      <label>日時 <input type="text" name="予約日時"></label>
+      <label>人数 <input type="text" name="人数"></label>
+      <label>スペース <input type="text" name="スペース"></label>
+      <label>飲み放題 <input type="text" name="飲み放題"></label>
+      <label>ご利用履歴 <input type="text" name="ご利用履歴"></label>
+      <label>氏名 <input type="text" name="氏名"></label>
+      <label>フリガナ <input type="text" name="フリガナ"></label>
+      <label>電話番号 <input type="text" name="電話番号"></label>
+      <label>メールアドレス <input type="text" name="メールアドレス"></label>
+      <label>備考 <textarea name="備考"></textarea></label>
+      <button type="submit">承認して確定</button>
+    </form>
+    <p id="result"></p>
+  </div>
+
+  <div id="done-screen">
+    <div class="icon">✓</div>
+    <h1>確定しました</h1>
+    <p>予約ステータスの更新とLINE通知の送信が完了しました。この画面は閉じて構いません。</p>
+  </div>
 
   <script>
     const reservationId = <?!= toSafeJson_(reservationId) ?>;
@@ -50,14 +63,23 @@
       const formData = new FormData(form);
       const editedData = Object.fromEntries(formData.entries());
       const resultEl = document.getElementById('result');
+      const submitBtn = form.querySelector('button[type="submit"]');
       resultEl.textContent = '処理中...';
+      submitBtn.disabled = true;
 
       google.script.run
         .withSuccessHandler((res) => {
-          resultEl.textContent = res.success ? '確定しました' : `エラー: ${res.error}`;
+          if (res.success) {
+            document.getElementById('form-screen').style.display = 'none';
+            document.getElementById('done-screen').style.display = 'block';
+          } else {
+            resultEl.textContent = `エラー: ${res.error}`;
+            submitBtn.disabled = false;
+          }
         })
         .withFailureHandler((err) => {
           resultEl.textContent = `エラー: ${err.message}`;
+          submitBtn.disabled = false;
         })
         .approveReservation(reservationId, editedData);
     });

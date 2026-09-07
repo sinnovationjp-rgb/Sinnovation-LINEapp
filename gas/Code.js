@@ -42,8 +42,7 @@ function approveReservation(id, editedData) {
       'スペース': confirmed['スペース'],
       '飲み放題': confirmed['飲み放題'],
       'ご利用履歴': confirmed['ご利用履歴'],
-      '氏名': confirmed['氏名'],
-      'フリガナ': confirmed['フリガナ'],
+      '氏名（カタカナ）': confirmed['氏名（カタカナ）'],
       '電話番号': confirmed['電話番号'],
       'メールアドレス': confirmed['メールアドレス'],
       '備考': confirmed['備考']
@@ -94,7 +93,7 @@ function buildConfirmedMessage_(reservation) {
     `人数: ${reservation['人数'] || ''}`,
     `スペース: ${reservation['スペース'] || ''}`,
     `飲み放題: ${reservation['飲み放題'] || ''}`,
-    `氏名: ${reservation['氏名'] || ''}`
+    `氏名: ${reservation['氏名（カタカナ）'] || ''}`
   ].join('\n');
 }
 

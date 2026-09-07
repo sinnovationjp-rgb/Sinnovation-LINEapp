@@ -1,4 +1,6 @@
 // 予約フローのステップ制御・確認画面組み立て・送信
+const KATAKANA_PATTERN = /^[゠-ヿ\s]+$/;
+
 document.querySelectorAll('.space-card').forEach((card) => {
   card.addEventListener('click', () => {
     document.querySelectorAll('.space-card').forEach((el) => el.classList.remove('is-selected'));
@@ -37,7 +39,11 @@ document.getElementById('step3-next')?.addEventListener('click', () => {
   const firstname = document.getElementById('firstname-input').value.trim();
   const phone = document.getElementById('phone-input').value.trim();
   if (!lastname || !firstname || !phone) {
-    alert('姓・名・電話番号は必須です');
+    alert('セイ・メイ・電話番号は必須です');
+    return;
+  }
+  if (!KATAKANA_PATTERN.test(lastname) || !KATAKANA_PATTERN.test(firstname)) {
+    alert('セイ・メイはカタカナで入力してください');
     return;
   }
   showStep(4);
@@ -61,7 +67,7 @@ function buildSummary() {
     ['スペース', reserveState.space],
     ['飲み放題', reserveState.drink],
     ['ご利用履歴', reserveState.usageHistory],
-    ['お名前', `${lastname} ${firstname}`],
+    ['お名前（カタカナ）', `${lastname} ${firstname}`],
     ['電話番号', phone],
     ['メールアドレス', email],
     ['備考', note]
@@ -75,8 +81,6 @@ function buildSummary() {
 document.getElementById('confirm-btn')?.addEventListener('click', async () => {
   const lastname = document.getElementById('lastname-input').value.trim();
   const firstname = document.getElementById('firstname-input').value.trim();
-  const lastkana = document.getElementById('lastkana-input').value.trim();
-  const firstkana = document.getElementById('firstkana-input').value.trim();
   const phone = document.getElementById('phone-input').value.trim();
   const email = document.getElementById('email-input').value.trim();
   const note = document.getElementById('note-input').value.trim();
@@ -88,7 +92,6 @@ document.getElementById('confirm-btn')?.addEventListener('click', async () => {
     drink: reserveState.drink,
     usageHistory: reserveState.usageHistory,
     name: `${lastname} ${firstname}`,
-    kana: `${lastkana} ${firstkana}`.trim(),
     phone: phone,
     email: email,
     note: note,

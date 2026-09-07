@@ -24,7 +24,7 @@ function buildReminderMessage_(reservation) {
     `人数: ${reservation['人数'] || ''}`,
     `スペース: ${reservation['スペース'] || ''}`,
     `飲み放題: ${reservation['飲み放題'] || ''}`,
-    `氏名: ${reservation['氏名'] || ''}`
+    `氏名: ${reservation['氏名（カタカナ）'] || ''}`
   ].join('\n');
 }
 

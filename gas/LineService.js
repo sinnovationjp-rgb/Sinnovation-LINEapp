@@ -34,6 +34,7 @@ var LineService = (function () {
       'ご予約が確定しました',
       `日時: ${reservation['予約日時'] || ''}`,
       `人数: ${reservation['人数'] || ''}`,
+      `スペース: ${reservation['スペース'] || ''}`,
       `飲み放題: ${reservation['飲み放題'] || ''}`
     ].join('\n');
     pushMessage(userId, text);

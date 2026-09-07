@@ -8,35 +8,128 @@
 </head>
 <body>
   <main id="reserve">
-    <h1>予約</h1>
-    <div id="calendar"></div>
+    <div class="step-tracker" id="step-tracker">
+      <div class="step-node is-active" data-node="1"><span class="num">1</span><span class="label">日時</span></div>
+      <div class="step-line"></div>
+      <div class="step-node" data-node="2"><span class="num">2</span><span class="label">スペース</span></div>
+      <div class="step-line"></div>
+      <div class="step-node" data-node="3"><span class="num">3</span><span class="label">情報</span></div>
+      <div class="step-line"></div>
+      <div class="step-node" data-node="4"><span class="num">4</span><span class="label">確認</span></div>
+      <div class="step-line"></div>
+      <div class="step-node" data-node="5"><span class="num">5</span><span class="label">完了</span></div>
+    </div>
 
-    <form id="reserve-form">
-      <label>予約希望日・時間帯 <input type="datetime-local" name="datetime" required></label>
-      <label>参加人数 <input type="number" name="headcount" min="1" required></label>
+    <!-- Step 1: 写真・日時・人数・時間 -->
+    <section class="screen is-active" data-screen="1">
+      <div class="photo-carousel">
+        <img class="photo-tile" src="img/bar-counter.jpg" alt="店内バーカウンターの様子">
+        <img class="photo-tile" src="img/drinks.jpg" alt="ドリンクメニューの一例">
+        <img class="photo-tile" src="img/sake.jpg" alt="日本酒メニューの一例">
+      </div>
 
-      <fieldset>
-        <legend>ご利用履歴</legend>
-        <label><input type="radio" name="usageHistory" value="初めて" required> 初めて</label>
-        <label><input type="radio" name="usageHistory" value="利用したことがある"> 利用したことがある</label>
-      </fieldset>
+      <div class="field">
+        <div class="cal-month" id="cal-month"></div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
 
-      <fieldset>
-        <legend>飲み放題の有無</legend>
-        <label><input type="radio" name="allYouCanDrink" value="あり" required> あり</label>
-        <label><input type="radio" name="allYouCanDrink" value="なし"> なし</label>
-      </fieldset>
+      <div class="field">
+        <span class="field-label">人数</span>
+        <div class="pill-row" id="people-row"></div>
+      </div>
 
-      <label>お名前 <input type="text" name="name" required></label>
-      <label>電話番号 <input type="tel" name="phone" required></label>
-      <label>備考 <textarea name="note"></textarea></label>
-      <button type="submit">予約する</button>
-    </form>
+      <div class="field">
+        <span class="field-label">時間</span>
+        <div class="pill-row time-row" id="time-row"></div>
+      </div>
+
+      <button type="button" class="primary-btn" id="step1-next" disabled>次へ</button>
+    </section>
+
+    <!-- Step 2: スペース選択 -->
+    <section class="screen" data-screen="2">
+      <button type="button" class="back-btn" data-prev="1">← 戻る</button>
+      <h2>スペースの選択</h2>
+
+      <div class="space-card" data-space="スタンディング・スペース">
+        <img class="space-thumb" src="img/standing-space.jpg" alt="スタンディング・スペースの様子">
+        <div class="space-body">
+          <p class="space-title">スタンディング・スペース <span class="space-badge">チャージなし</span></p>
+          <p class="space-desc">「新たな交流」がテーマ。チャージ等はなく、少し空いた時間に1杯から気軽にご利用いただけます。1人でも仲間とでもフラッとどうぞ。</p>
+        </div>
+        <div class="space-check">✓</div>
+      </div>
+
+      <div class="space-card" data-space="ラウンジ・スペース">
+        <img class="space-thumb" src="img/lounge-space.jpg" alt="ラウンジ・スペースの様子">
+        <div class="space-body">
+          <p class="space-title">ラウンジ・スペース <span class="space-badge">貸切可</span></p>
+          <p class="space-desc">「新たな発見と深堀り」がテーマ。テーブルチャージ制（席2,000円／お一人様500円程）。ゆっくり話し込みたい方や、イベント・商談・仲間との集まりにもおすすめです。</p>
+        </div>
+        <div class="space-check">✓</div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">飲み放題の有無</span>
+        <div class="chip-group">
+          <label><input type="radio" name="drink" value="あり" checked>あり</label>
+          <label><input type="radio" name="drink" value="なし">なし</label>
+        </div>
+      </div>
+
+      <button type="button" class="primary-btn" id="step2-next" disabled>次へ</button>
+    </section>
+
+    <!-- Step 3: 予約者情報 -->
+    <section class="screen" data-screen="3">
+      <button type="button" class="back-btn" data-prev="2">← 戻る</button>
+      <h2>ご予約者情報の入力</h2>
+
+      <div class="name-row">
+        <label class="text-field">姓 <input type="text" id="lastname-input" required></label>
+        <label class="text-field">名 <input type="text" id="firstname-input" required></label>
+      </div>
+      <div class="name-row">
+        <label class="text-field">せい <input type="text" id="lastkana-input"></label>
+        <label class="text-field">めい <input type="text" id="firstkana-input"></label>
+      </div>
+
+      <label class="text-field">電話番号（必須） <input type="tel" id="phone-input" required></label>
+      <label class="text-field">メールアドレス <input type="email" id="email-input"></label>
+
+      <div class="field">
+        <span class="field-label">ご利用履歴</span>
+        <div class="chip-group">
+          <label><input type="radio" name="usageHistory" value="初めて" checked>初めて</label>
+          <label><input type="radio" name="usageHistory" value="利用したことがある">利用したことがある</label>
+        </div>
+      </div>
+
+      <label class="text-field">備考 <textarea id="note-input" rows="2"></textarea></label>
+
+      <button type="button" class="primary-btn" id="step3-next">予約前の最終確認へ</button>
+    </section>
+
+    <!-- Step 4: 確認 -->
+    <section class="screen" data-screen="4">
+      <button type="button" class="back-btn" data-prev="3">← 戻る</button>
+      <h2>予約内容の確認</h2>
+
+      <dl class="summary" id="summary"></dl>
+
+      <button type="button" class="primary-btn" id="confirm-btn">この内容で登録する</button>
+    </section>
+
+    <!-- Step 5: 完了 -->
+    <section class="screen" data-screen="5">
+      <div class="complete-icon">✓</div>
+      <h2 style="text-align:center;">ご予約ありがとうございます</h2>
+      <p class="complete-copy">内容を確認のうえ、担当者よりLINEでご連絡します。</p>
+    </section>
   </main>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="js/liff-init.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <script src="js/calendar.js"></script>
   <script src="js/reserve-form.js"></script>
 </body>

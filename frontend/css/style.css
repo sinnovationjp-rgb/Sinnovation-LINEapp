@@ -1,22 +1,32 @@
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+  --accent: #b6763a;
+  --border: #e4dccf;
+  --muted: #6b6258;
+  --badge-bg: #f1e6d8;
+  --badge-ink: #8a5a24;
 }
 
 body {
   margin: 0;
-  background: #f7f7f7;
-  color: #222;
+  background: #faf8f5;
+  color: #211c17;
 }
 
 main {
   max-width: 480px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 16px 16px 40px;
 }
 
 h1 {
   font-size: 1.4rem;
   text-align: center;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin: 4px 0 18px;
 }
 
 button {
@@ -33,46 +43,123 @@ button {
   cursor: pointer;
 }
 
-#calendar {
-  margin: 16px 0 24px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 8px;
+/* ---- ステップトラッカー ---- */
+.step-tracker { display: flex; align-items: center; padding: 4px 4px 18px; }
+.step-node { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.step-node .num {
+  width: 26px; height: 26px; border-radius: 50%; background: #e7e0d6; color: #8b8177;
+  display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700;
+}
+.step-node .label { font-size: 0.62rem; color: #8b8177; white-space: nowrap; }
+.step-node.is-active .num { background: var(--accent); color: #fff; }
+.step-node.is-active .label { color: #211c17; font-weight: 700; }
+.step-node.is-done .num { background: #d9c6ac; color: #6b4a1f; }
+.step-line { flex: 1; height: 1px; background: var(--border); margin: 0 4px 18px; }
+
+/* ---- ステップ画面 ---- */
+.screen { display: none; }
+.screen.is-active { display: block; }
+
+.back-btn {
+  appearance: none; border: none; background: none; color: #8b8177;
+  font-size: 0.85rem; padding: 0 0 12px; margin: 0; cursor: pointer; display: block; width: auto;
 }
 
-form label {
-  display: block;
-  margin-bottom: 12px;
-  font-size: 0.9rem;
+/* ---- 写真スライダー ---- */
+.photo-carousel {
+  display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; margin-bottom: 16px;
+}
+.photo-tile {
+  flex: 0 0 85%; width: 85%; height: 160px; scroll-snap-align: start;
+  object-fit: cover; border-radius: 10px; background: var(--border); display: block;
 }
 
-form input:not([type="radio"]):not([type="checkbox"]),
-form textarea {
-  display: block;
-  width: 100%;
-  margin-top: 4px;
-  padding: 8px;
-  box-sizing: border-box;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
+.field { margin: 0 0 20px; }
+.field-label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--muted); margin: 0 0 8px; }
+
+/* ---- カレンダー ---- */
+.cal-month { font-size: 0.95rem; font-weight: 700; margin-bottom: 10px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 4px; }
+.cal-dow { text-align: center; font-size: 0.72rem; color: #8b8177; padding-bottom: 4px; }
+.cal-dow.is-sun { color: #d1453a; }
+.cal-dow.is-sat { color: #3a6fd1; }
+.cal-cell {
+  aspect-ratio: 1 / 1.05; border-radius: 10px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px; font-size: 0.85rem;
+  background: #fff; border: 1px solid var(--border);
+}
+.cal-cell .cal-num { font-weight: 600; }
+.cal-cell .cal-mark { font-size: 0.9rem; color: var(--accent); }
+.cal-cell.is-past { color: #c9c1b5; background: transparent; border-color: transparent; }
+.cal-cell.is-past .cal-mark { color: #d8d1c4; }
+.cal-cell.is-available { cursor: pointer; }
+.cal-cell.is-selected { background: var(--accent); border-color: var(--accent); }
+.cal-cell.is-selected .cal-num,
+.cal-cell.is-selected .cal-mark { color: #fff; }
+
+/* ---- ピル選択（人数・時間） ---- */
+.pill-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.pill {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 16px; border-radius: 999px; border: 1px solid var(--border);
+  background: #fff; font-size: 0.9rem; cursor: pointer; white-space: nowrap;
+}
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--accent); flex: 0 0 auto; }
+.pill.is-selected { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.pill.is-selected .dot { background: #fff; border-color: #fff; }
+
+/* ---- スペースカード ---- */
+.space-card {
+  display: flex; gap: 12px; border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px; margin-bottom: 12px; cursor: pointer; background: #fff;
+}
+.space-card.is-selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.space-thumb { flex: 0 0 auto; width: 84px; height: 84px; border-radius: 8px; object-fit: cover; background: var(--border); display: block; }
+.space-body { flex: 1; min-width: 0; }
+.space-title { font-size: 0.95rem; font-weight: 700; margin: 0 0 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.space-badge { font-size: 0.68rem; background: var(--badge-bg); color: var(--badge-ink); padding: 2px 7px; border-radius: 4px; font-weight: 700; }
+.space-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.55; margin: 0; }
+.space-check {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: transparent; align-self: flex-start;
+}
+.space-card.is-selected .space-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---- チップ（ラジオ選択） ---- */
+.chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-group label {
+  position: relative; padding: 10px 18px; border-radius: 999px; border: 1px solid var(--border);
+  background: #fff; font-size: 0.9rem; cursor: pointer;
+}
+.chip-group input { position: absolute; opacity: 0; pointer-events: none; }
+.chip-group label:has(input:checked) { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+/* ---- テキスト入力 ---- */
+.text-field { display: block; font-size: 0.8rem; font-weight: 700; color: var(--muted); margin-bottom: 16px; }
+.name-row { display: flex; gap: 10px; }
+.name-row .text-field { flex: 1; }
+.text-field input, .text-field textarea {
+  display: block; width: 100%; margin-top: 6px; padding: 10px; font-size: 1rem;
+  border: 1px solid var(--border); border-radius: 8px; font-family: inherit; box-sizing: border-box;
 }
 
-form fieldset {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 12px;
-  margin: 0 0 12px;
+/* ---- ボタン ---- */
+.primary-btn {
+  display: block; width: 100%; padding: 14px; margin-top: 8px; border: none;
+  border-radius: 10px; background: var(--accent); color: #fff; font-size: 1rem;
+  font-weight: 700; cursor: pointer;
 }
+.primary-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
 
-form fieldset legend {
-  padding: 0 4px;
-  font-size: 0.85rem;
-}
+/* ---- 確認画面 ---- */
+.summary { margin: 0 0 20px; font-size: 0.92rem; }
+.summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eee4d6; }
+.summary-row dt { color: var(--muted); }
+.summary-row dd { margin: 0; font-weight: 700; text-align: right; }
 
-form fieldset label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 16px 0 0;
+/* ---- 完了画面 ---- */
+.complete-icon {
+  width: 56px; height: 56px; border-radius: 50%; background: var(--badge-bg); color: var(--accent);
+  display: flex; align-items: center; justify-content: center; margin: 40px auto 18px; font-size: 1.5rem;
 }
+.complete-copy { text-align: center; color: var(--muted); font-size: 0.92rem; line-height: 1.7; }

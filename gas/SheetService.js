@@ -1,6 +1,6 @@
 var SheetService = (function () {
   const SHEET_NAME = '予約一覧';
-  const HEADERS = ['ID', 'ステータス', '予約日時', '人数', 'ご利用履歴', '飲み放題', '氏名', '電話番号', '備考', 'LINE UserId', '登録日時'];
+  const HEADERS = ['ID', 'ステータス', '予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名', 'フリガナ', '電話番号', 'メールアドレス', '備考', 'LINE UserId', '登録日時'];
 
   function getSheet_() {
     const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
@@ -42,10 +42,13 @@ var SheetService = (function () {
         '仮予約',
         data.datetime || '',
         data.headcount || '',
+        data.space || '',
+        data.drink || '',
         data.usageHistory || '',
-        data.allYouCanDrink || '',
         data.name || '',
+        data.kana || '',
         data.phone || '',
+        data.email || '',
         data.note || '',
         data.userId || '',
         new Date()

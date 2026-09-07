@@ -39,7 +39,8 @@ function approveReservation(id, editedData) {
       'ステータス': '確定',
       '予約日時': confirmed['予約日時'],
       '人数': confirmed['人数'],
-      'プラン': confirmed['プラン'],
+      'ご利用履歴': confirmed['ご利用履歴'],
+      '飲み放題': confirmed['飲み放題'],
       '氏名': confirmed['氏名'],
       '電話番号': confirmed['電話番号'],
       '備考': confirmed['備考']
@@ -48,7 +49,7 @@ function approveReservation(id, editedData) {
     CalendarService.createEvent({
       datetime: confirmed['予約日時'],
       headcount: confirmed['人数'],
-      plan: confirmed['プラン'],
+      allYouCanDrink: confirmed['飲み放題'],
       name: confirmed['氏名'],
       note: confirmed['備考']
     });
@@ -80,7 +81,8 @@ function buildProvisionalMessage_(id, data, approvalUrl) {
     '新規予約リクエストがありました',
     `日時: ${data.datetime || '未入力'}`,
     `人数: ${data.headcount || '未入力'}`,
-    `プラン: ${data.plan || '未入力'}`,
+    `ご利用履歴: ${data.usageHistory || '未入力'}`,
+    `飲み放題: ${data.allYouCanDrink || '未入力'}`,
     `氏名: ${data.name || '未入力'}`,
     `電話番号: ${data.phone || '未入力'}`,
     `備考: ${data.note || 'なし'}`,
@@ -93,7 +95,7 @@ function buildConfirmedMessage_(reservation) {
     '予約が確定しました',
     `日時: ${reservation['予約日時'] || ''}`,
     `人数: ${reservation['人数'] || ''}`,
-    `プラン: ${reservation['プラン'] || ''}`,
+    `飲み放題: ${reservation['飲み放題'] || ''}`,
     `氏名: ${reservation['氏名'] || ''}`
   ].join('\n');
 }

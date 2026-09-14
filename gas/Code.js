@@ -48,6 +48,15 @@ function approveReservation(id, editedData) {
       '備考': confirmed['備考']
     });
 
+    CalendarService.createEvent({
+      datetime: confirmed['予約日時'],
+      headcount: confirmed['人数'],
+      space: confirmed['スペース'],
+      drink: confirmed['飲み放題'],
+      name: confirmed['氏名（カタカナ）'],
+      note: confirmed['備考']
+    });
+
     NotifyService.send(buildConfirmedMessage_(confirmed));
 
     const userId = confirmed['LINE UserId'];

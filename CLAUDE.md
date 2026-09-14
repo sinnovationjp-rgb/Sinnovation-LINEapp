@@ -8,7 +8,8 @@ LINE公式アカウントのLIFFを使ったスペース予約システム。ユ
 ## アーキテクチャ
 - フロントエンド: 素のHTML/CSS/JS。ビルドステップなし。GitHub Pagesで公開（HTTPS必須、LIFFの要件）。
 - バックエンド: Google Apps Script (GAS) のWeb App一本（doGet/doPost）。
-- DB: Googleスプレッドシート（予約管理台帳）。空き状況判定・確定記録もすべてここで完結し、Googleカレンダーには依存しない
+- DB: Googleスプレッドシート（予約管理台帳）。空き状況判定はスプレッドシートの確定済みデータのみで完結する（Googleカレンダーの空き状況は参照しない）
+- カレンダー連携: 予約が承認・確定したタイミングでCalendarServiceがGoogleカレンダーに予定を登録する（確定記録の反映先としてのみ利用し、空き状況判定には使わない）
 - 通知: Discord Webhook（初期はSlack Webhookで代用可） / LINE Messaging API
 
 ### GAS側のルーティング設計
@@ -25,13 +26,13 @@ GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フ
 時限トリガーは`clasp push`だけでは有効化されません。トリガー登録用のセットアップ関数（例: `createDailyTrigger()`）を用意し、GASエディタで初回のみ手動実行してください。
 
 ## シークレット管理
-GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートIDは必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
+GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートID、カレンダーID（`CALENDAR_ID`）は必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
 
 ## ディレクトリ構成
 README.mdの構成図を参照してください（gas/配下はclaspでプッシュする対象）。
 
 ## コーディング規約
-- GAS側は関心事ごとにファイル分割（Code.js / SheetService.js / NotifyService.js / LineService.js / Trigger.js）
+- GAS側は関心事ごとにファイル分割（Code.js / SheetService.js / CalendarService.js / NotifyService.js / LineService.js / Trigger.js）
 - NotifyService.jsはDiscordとSlackのWebhook形式差異を吸収する共通インターフェースにする
 - 外部API呼び出しは必ずtry/catchし、失敗時はログを残す
 - フロントは1画面1HTMLファイル。共通処理はjs/に切り出す

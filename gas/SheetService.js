@@ -181,12 +181,45 @@ var SheetService = (function () {
     }
   }
 
+  // 過去データ修正用: 電話番号列がスプレッドシートに数値として保存され先頭の0が消えている行を一括で文字列に戻す
+  function fixPhoneNumberLeadingZeros() {
+    try {
+      const sheet = getSheet_();
+      const values = sheet.getDataRange().getValues();
+      const headers = values[0];
+      const col = headers.indexOf('電話番号');
+      if (col === -1) {
+        console.error('SheetService.fixPhoneNumberLeadingZeros: 電話番号列が見つかりません');
+        return 0;
+      }
+      let fixedCount = 0;
+      for (let i = 1; i < values.length; i++) {
+        const value = values[i][col];
+        if (typeof value === 'number') {
+          sheet.getRange(i + 1, col + 1).setValue(`'0${value}`);
+          fixedCount++;
+        }
+      }
+      console.log(`SheetService.fixPhoneNumberLeadingZeros: ${fixedCount}件の電話番号を修正しました`);
+      return fixedCount;
+    } catch (err) {
+      console.error('SheetService.fixPhoneNumberLeadingZeros failed', err);
+      throw err;
+    }
+  }
+
   return {
     addProvisionalReservation: addProvisionalReservation,
     getReservationById: getReservationById,
     updateReservation: updateReservation,
     getConfirmedReservationsForDate: getConfirmedReservationsForDate,
     getAvailability: getAvailability,
-    getAllReservations: getAllReservations
+    getAllReservations: getAllReservations,
+    fixPhoneNumberLeadingZeros: fixPhoneNumberLeadingZeros
   };
 })();
+
+// GASエディタで一度だけ手動実行して、既存データの電話番号の先頭0が消えている問題を一括修正する
+function fixPhoneNumberLeadingZeros() {
+  SheetService.fixPhoneNumberLeadingZeros();
+}

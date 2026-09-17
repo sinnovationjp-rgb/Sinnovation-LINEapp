@@ -116,7 +116,21 @@ function cancelReservation(id) {
     if (!isAuthorizedAdmin_()) {
       throw new Error('アクセス権がありません');
     }
+    const reservation = SheetService.getReservationById(id);
+    if (!reservation) {
+      throw new Error(`予約ID ${id} が見つかりません`);
+    }
+    const wasConfirmed = reservation['ステータス'] === '確定';
+
     SheetService.updateReservation(id, { 'ステータス': 'キャンセル' });
+
+    NotifyService.send(buildCancelledMessage_(reservation, wasConfirmed));
+
+    const userId = reservation['LINE UserId'];
+    if (userId) {
+      LineService.pushCancellation(userId, reservation, wasConfirmed);
+    }
+
     return { success: true };
   } catch (err) {
     console.error('cancelReservation failed', err);
@@ -147,6 +161,16 @@ function buildConfirmedMessage_(reservation) {
     `人数: ${reservation['人数'] || ''}`,
     `スペース: ${reservation['スペース'] || ''}`,
     `飲み放題: ${reservation['飲み放題'] || ''}`,
+    `氏名: ${reservation['氏名（カタカナ）'] || ''}`
+  ].join('\n');
+}
+
+function buildCancelledMessage_(reservation, wasConfirmed) {
+  return [
+    wasConfirmed ? '確定済みの予約がキャンセルされました' : '仮予約が却下されました',
+    `日時: ${reservation['予約日時'] || ''}`,
+    `人数: ${reservation['人数'] || ''}`,
+    `スペース: ${reservation['スペース'] || ''}`,
     `氏名: ${reservation['氏名（カタカナ）'] || ''}`
   ].join('\n');
 }

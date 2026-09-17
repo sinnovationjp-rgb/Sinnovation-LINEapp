@@ -69,6 +69,8 @@ function approveReservation(id, editedData) {
     const userId = confirmed['LINE UserId'];
     if (userId) {
       LineService.pushConfirmation(userId, confirmed);
+    } else {
+      console.warn(`approveReservation: LINE UserIdが空のため確定通知を送信できません（予約ID ${id}）`);
     }
 
     return { success: true };
@@ -129,6 +131,8 @@ function cancelReservation(id) {
     const userId = reservation['LINE UserId'];
     if (userId) {
       LineService.pushCancellation(userId, reservation, wasConfirmed);
+    } else {
+      console.warn(`cancelReservation: LINE UserIdが空のためキャンセル通知を送信できません（予約ID ${id}）`);
     }
 
     return { success: true };

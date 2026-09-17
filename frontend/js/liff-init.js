@@ -14,10 +14,13 @@ async function initLiff() {
   }
   try {
     await liff.init({ liffId: LIFF_ID });
-    if (liff.isLoggedIn()) {
-      const profile = await liff.getProfile();
-      currentUserId = profile.userId;
+    // 未ログインのままだとuserIdが取得できず、確定・キャンセル時のLINE通知が送れなくなる
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: location.href });
+      return;
     }
+    const profile = await liff.getProfile();
+    currentUserId = profile.userId;
   } catch (err) {
     console.error('LIFF初期化に失敗しました', err);
   }

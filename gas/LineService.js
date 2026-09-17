@@ -14,7 +14,7 @@ var LineService = (function () {
       return;
     }
     try {
-      UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
+      const response = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
         method: 'post',
         contentType: 'application/json',
         headers: { Authorization: `Bearer ${token}` },
@@ -24,6 +24,10 @@ var LineService = (function () {
         }),
         muteHttpExceptions: true
       });
+      const code = response.getResponseCode();
+      if (code < 200 || code >= 300) {
+        console.error(`LineService.pushMessage: LINE APIがエラーを返しました (status=${code})`, response.getContentText());
+      }
     } catch (err) {
       console.error('LineService.pushMessage failed', err);
     }

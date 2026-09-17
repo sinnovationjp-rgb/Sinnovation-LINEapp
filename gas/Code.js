@@ -48,14 +48,18 @@ function approveReservation(id, editedData) {
       '備考': confirmed['備考']
     });
 
-    CalendarService.createEvent({
-      datetime: confirmed['予約日時'],
-      headcount: confirmed['人数'],
-      space: confirmed['スペース'],
-      drink: confirmed['飲み放題'],
-      name: confirmed['氏名（カタカナ）'],
-      note: confirmed['備考']
-    });
+    try {
+      CalendarService.createEvent({
+        datetime: confirmed['予約日時'],
+        headcount: confirmed['人数'],
+        space: confirmed['スペース'],
+        drink: confirmed['飲み放題'],
+        name: confirmed['氏名（カタカナ）'],
+        note: confirmed['備考']
+      });
+    } catch (calendarErr) {
+      console.error(`approveReservation: カレンダー登録に失敗しました（予約ID ${id}）。スプレッドシートの確定・通知は続行します`, calendarErr);
+    }
 
     NotifyService.send(buildConfirmedMessage_(confirmed));
 

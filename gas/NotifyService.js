@@ -18,12 +18,16 @@ var NotifyService = (function () {
       return;
     }
     try {
-      UrlFetchApp.fetch(url, {
+      const response = UrlFetchApp.fetch(url, {
         method: 'post',
         contentType: 'application/json',
         payload: JSON.stringify(buildPayload_(url, message)),
         muteHttpExceptions: true
       });
+      const code = response.getResponseCode();
+      if (code < 200 || code >= 300) {
+        console.error(`NotifyService.send: Webhookがエラーを返しました (status=${code})`, response.getContentText());
+      }
     } catch (err) {
       console.error('NotifyService.send failed', err);
     }

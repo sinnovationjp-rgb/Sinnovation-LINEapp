@@ -42,9 +42,10 @@ var SheetService = (function () {
   }
 
   // 先頭が=+-@のときスプレッドシート上で数式扱いされるのを防ぐ（外部入力を書き込む前に必ず通す）
+  // また電話番号のように先頭が0の数字列は、数値扱いされると0が消えてしまうため合わせて保護する
   function sanitizeCell_(value) {
     if (typeof value !== 'string') return value;
-    if (/^[=+\-@\t\r]/.test(value)) {
+    if (/^[=+\-@\t\r]/.test(value) || /^0\d/.test(value)) {
       return `'${value}`;
     }
     return value;

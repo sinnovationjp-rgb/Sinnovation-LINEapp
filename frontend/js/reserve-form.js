@@ -1,5 +1,4 @@
 // 予約フローのステップ制御・確認画面組み立て・送信
-const KATAKANA_PATTERN = /^[゠-ヿ\s]+$/;
 
 document.querySelectorAll('.space-card').forEach((card) => {
   card.addEventListener('click', () => {
@@ -40,10 +39,6 @@ document.getElementById('step3-next')?.addEventListener('click', () => {
   const phone = document.getElementById('phone-input').value.trim();
   if (!lastname || !firstname || !phone) {
     alert('セイ・メイ・電話番号は必須です');
-    return;
-  }
-  if (!KATAKANA_PATTERN.test(lastname) || !KATAKANA_PATTERN.test(firstname)) {
-    alert('セイ・メイはカタカナで入力してください');
     return;
   }
   showStep(4);

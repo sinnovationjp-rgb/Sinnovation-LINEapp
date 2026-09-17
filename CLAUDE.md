@@ -23,7 +23,7 @@ doGet/doPostは公開URLを1つしか持てないため、クエリパラメー�
 ### 管理者画面（AdminPage.html）
 - 予約一覧・ステータス別フィルタ・検索・詳細パネルからの承認/却下/キャンセル操作ができるスタッフ向け画面
 - アクセス制限は`isAuthorizedAdmin_()`が担う：`Session.getActiveUser().getEmail()`を取得し、スクリプトプロパティ`ADMIN_EMAILS`（カンマ区切りのメールアドレス一覧）と照合する。未許可・匿名アクセスの場合は一覧データを含まない「アクセス権がありません」画面を返す
-- 匿名アクセスを許可している既存のWebアプリデプロイ（LIFF・doPost用）では`Session.getActiveUser()`が空になり誰であってもアクセス権なし扱いになるため、管理者用には**ドメイン制限（Anyone within [ドメイン]）を設定した別デプロイ**を用意し、そちらのURLをスタッフに共有する。コードは同一なので`clasp push`後は両方のデプロイを更新する
+- 既存の1つのWebアプリデプロイ（アクセス可能ユーザー設定は「全員」）で予約用・管理者用の両方を兼用できる。実機確認の結果、匿名のLINEユーザーには`Session.getActiveUser()`が空になり予約機能に影響しない一方、スクリプト所有ドメイン（sinnovation.jp）にログイン済みのスタッフがアクセスした場合は同関数でメールアドレスが取得できるため、`ADMIN_EMAILS`との照合だけで管理者画面のアクセス制御が成立する。別デプロイは不要
 
 ### CORSの注意点（重要）
 GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フロントから`Content-Type: application/json`でPOSTするとプリフライトで失敗するので、`Content-Type: text/plain;charset=utf-8`でJSON文字列を送り、GAS側は`JSON.parse(e.postData.contents)`で受け取ってください。

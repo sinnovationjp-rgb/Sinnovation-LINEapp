@@ -6,7 +6,8 @@ var NotifyService = (function () {
 
   function buildPayload_(url, message) {
     if (url.indexOf('discord.com') !== -1) {
-      return { content: message };
+      // allowed_mentions: [] で氏名・備考等に@everyone等が入力されてもメンションを発生させない
+      return { content: message, allowed_mentions: { parse: [] } };
     }
     return { text: message };
   }

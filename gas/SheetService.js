@@ -40,6 +40,15 @@ var SheetService = (function () {
     return obj;
   }
 
+  // 先頭が=+-@のときスプレッドシート上で数式扱いされるのを防ぐ（外部入力を書き込む前に必ず通す）
+  function sanitizeCell_(value) {
+    if (typeof value !== 'string') return value;
+    if (/^[=+\-@\t\r]/.test(value)) {
+      return `'${value}`;
+    }
+    return value;
+  }
+
   function addProvisionalReservation(data) {
     try {
       const sheet = getSheet_();
@@ -47,16 +56,16 @@ var SheetService = (function () {
       sheet.appendRow([
         id,
         '仮予約',
-        data.datetime || '',
-        data.headcount || '',
-        data.space || '',
-        data.drink || '',
-        data.usageHistory || '',
-        data.name || '',
-        data.phone || '',
-        data.email || '',
-        data.note || '',
-        data.userId || '',
+        sanitizeCell_(data.datetime || ''),
+        sanitizeCell_(data.headcount || ''),
+        sanitizeCell_(data.space || ''),
+        sanitizeCell_(data.drink || ''),
+        sanitizeCell_(data.usageHistory || ''),
+        sanitizeCell_(data.name || ''),
+        sanitizeCell_(data.phone || ''),
+        sanitizeCell_(data.email || ''),
+        sanitizeCell_(data.note || ''),
+        sanitizeCell_(data.userId || ''),
         new Date()
       ]);
       return id;
@@ -87,7 +96,7 @@ var SheetService = (function () {
       Object.keys(updates).forEach((key) => {
         const col = HEADERS.indexOf(key);
         if (col === -1) return;
-        sheet.getRange(found.rowIndex, col + 1).setValue(updates[key]);
+        sheet.getRange(found.rowIndex, col + 1).setValue(sanitizeCell_(updates[key]));
       });
     } catch (err) {
       console.error('SheetService.updateReservation failed', err);

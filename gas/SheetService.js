@@ -1,6 +1,7 @@
 var SheetService = (function () {
   const SHEET_NAME = '予約一覧';
   const HEADERS = ['ID', 'ステータス', '予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名（カタカナ）', '電話番号', 'メールアドレス', '備考', 'LINE UserId', '登録日時'];
+  const DAILY_CAPACITY = 15; // 1日あたりの合計人数の上限（スペース合算、目安表示用）
 
   function getSheet_() {
     const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
@@ -135,7 +136,7 @@ var SheetService = (function () {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const bookedDates = new Set();
+    const bookedHeadcount = {};
     try {
       const sheet = getSheet_();
       const values = sheet.getDataRange().getValues();
@@ -144,7 +145,9 @@ var SheetService = (function () {
         const obj = rowToObject_(headers, values[i]);
         if (obj['ステータス'] !== '確定') continue;
         const dateStr = formatDateOnly_(obj['予約日時']);
-        if (dateStr) bookedDates.add(dateStr);
+        if (!dateStr) continue;
+        const headcount = Number(obj['人数']) || 0;
+        bookedHeadcount[dateStr] = (bookedHeadcount[dateStr] || 0) + headcount;
       }
     } catch (err) {
       console.error('SheetService.getAvailability: 予約データの取得に失敗しました', err);
@@ -155,7 +158,8 @@ var SheetService = (function () {
       const day = new Date(today);
       day.setDate(today.getDate() + i);
       const dateStr = Utilities.formatDate(day, 'Asia/Tokyo', 'yyyy-MM-dd');
-      result.push({ date: dateStr, available: !bookedDates.has(dateStr) });
+      const total = bookedHeadcount[dateStr] || 0;
+      result.push({ date: dateStr, available: total < DAILY_CAPACITY });
     }
     return result;
   }

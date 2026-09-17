@@ -2,6 +2,9 @@ function doGet(e) {
   if (e.parameter && e.parameter.page === 'approval' && e.parameter.id) {
     return renderApprovalPage_(e.parameter.id);
   }
+  if (e.parameter && e.parameter.page === 'admin') {
+    return renderAdminPage_();
+  }
   const availability = SheetService.getAvailability(30);
   return jsonResponse_(availability);
 }
@@ -81,6 +84,44 @@ function renderApprovalPage_(id) {
   template.reservationId = id;
   template.reservation = reservation;
   return template.evaluate().setTitle('予約承認');
+}
+
+// 管理者アカウントのみアクセス許可（スクリプトプロパティADMIN_EMAILSに登録されたメールアドレスの一覧と照合）
+function isAuthorizedAdmin_() {
+  const email = (Session.getActiveUser().getEmail() || '').toLowerCase();
+  if (!email) return false;
+  const allowList = (PropertiesService.getScriptProperties().getProperty('ADMIN_EMAILS') || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return allowList.indexOf(email) !== -1;
+}
+
+function renderAdminPage_() {
+  if (!isAuthorizedAdmin_()) {
+    return HtmlService.createHtmlOutput(
+      '<div style="font-family:sans-serif;text-align:center;padding:80px 20px;color:#211d17;">' +
+      '<h1>アクセス権がありません</h1>' +
+      '<p>この画面は管理者アカウントでログインした場合のみ利用できます。</p>' +
+      '</div>'
+    ).setTitle('アクセス権がありません');
+  }
+  const template = HtmlService.createTemplateFromFile('AdminPage');
+  template.reservations = SheetService.getAllReservations();
+  return template.evaluate().setTitle('予約管理');
+}
+
+function cancelReservation(id) {
+  try {
+    if (!isAuthorizedAdmin_()) {
+      throw new Error('アクセス権がありません');
+    }
+    SheetService.updateReservation(id, { 'ステータス': 'キャンセル' });
+    return { success: true };
+  } catch (err) {
+    console.error('cancelReservation failed', err);
+    return { success: false, error: String(err) };
+  }
 }
 
 function buildProvisionalMessage_(id, data, approvalUrl) {

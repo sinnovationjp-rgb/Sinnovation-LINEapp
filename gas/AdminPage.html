@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>予約管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --border: #e3ddd0;
+    --text: #211d17;
+    --text-muted: #857b68;
+    --accent: #b6763a;
+    --accent-strong: #96602c;
+    --accent-soft: #f4e6d3;
+    --ok: #2f7a52;
+    --ok-soft: #e2f1e8;
+    --pending: #3d6fa5;
+    --pending-soft: #e4edf6;
+    --danger: #a8433a;
+    --danger-soft: #f5e4e2;
+    --shadow: 0 1px 2px rgba(33,29,23,0.06), 0 8px 24px -12px rgba(33,29,23,0.18);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+    padding: 20px;
+  }
+  h1, h2, h3 { font-family: "Zen Kaku Gothic New", "Noto Sans JP", sans-serif; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  .shell { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand .mark { font-family: "Zen Kaku Gothic New", sans-serif; font-weight: 900; font-size: 1.05rem; color: var(--accent-strong); letter-spacing: 0.02em; }
+  .brand h1 { font-size: 1.4rem; font-weight: 700; margin: 0; }
+  .today { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+  .stat .label { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; }
+  .stat .value { font-family: "Zen Kaku Gothic New", sans-serif; font-size: 1.7rem; font-weight: 700; }
+  .stat .value small { font-size: 0.95rem; font-weight: 500; color: var(--text-muted); }
+  .stat.warn .value { color: var(--pending); }
+  .cap-bar { height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; margin-top: 2px; }
+  .cap-bar > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+    font: inherit; font-weight: 600; font-size: 0.82rem; padding: 7px 14px; border-radius: 999px;
+    cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background .15s, color .15s, border-color .15s;
+  }
+  .tab .n { font-size: 0.74rem; opacity: 0.75; }
+  .tab:hover { border-color: var(--accent); color: var(--text); }
+  .tab.is-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .search { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; min-width: 220px; flex: 1 1 220px; max-width: 320px; }
+  .search svg { flex-shrink: 0; color: var(--text-muted); }
+  .search input { border: none; background: none; outline: none; font: inherit; color: var(--text); width: 100%; }
+  .search input::placeholder { color: var(--text-muted); }
+
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 760px; }
+  thead th { text-align: left; font-size: 0.74rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.03em; padding: 12px 16px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody tr { cursor: pointer; transition: background .12s; }
+  tbody tr:hover { background: var(--accent-soft); }
+  tbody tr.is-selected { background: var(--accent-soft); }
+  tbody tr + tr td { border-top: 1px solid var(--border); }
+  tbody td { padding: 13px 16px; font-size: 0.88rem; vertical-align: middle; }
+  .cell-name { font-weight: 600; }
+
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pill.pending { background: var(--pending-soft); color: var(--pending); }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.danger { background: var(--danger-soft); color: var(--danger); }
+
+  .space-tag { font-size: 0.78rem; color: var(--text-muted); }
+  .empty-row td { text-align: center; color: var(--text-muted); padding: 40px 16px; font-size: 0.88rem; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(20,17,12,0.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; }
+  .overlay.is-open { opacity: 1; pointer-events: auto; }
+
+  .panel {
+    position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 100%);
+    background: var(--surface-raised); border-left: 1px solid var(--border);
+    transform: translateX(100%); transition: transform .25s ease; z-index: 11;
+    display: flex; flex-direction: column; box-shadow: -12px 0 32px -16px rgba(0,0,0,0.35);
+  }
+  .panel.is-open { transform: translateX(0); }
+  .panel-head { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .panel-head h2 { font-size: 1.15rem; margin: 0 0 4px; }
+  .panel-close { border: none; background: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 8px; flex-shrink: 0; }
+  .panel-close:hover { background: var(--accent-soft); color: var(--text); }
+  .panel-body { padding: 18px 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 18px; }
+  .field-group { display: flex; flex-direction: column; gap: 10px; }
+  .field-group h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; margin: 0; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 0.88rem; padding: 2px 0; margin: 0; }
+  .kv dt { color: var(--text-muted); flex-shrink: 0; }
+  .kv dd { margin: 0; text-align: right; font-weight: 500; }
+  .note-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap; }
+  .panel-foot { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+  .btn { flex: 1; border: none; border-radius: 10px; padding: 11px 14px; font: inherit; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: filter .15s, background .15s; }
+  .btn:hover { filter: brightness(0.96); }
+  .btn:disabled { opacity: 0.6; cursor: default; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .btn.danger-ghost { background: var(--danger-soft); color: var(--danger); }
+
+  .badge-liff { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--ok); font-weight: 700; }
+  .badge-liff.off { color: var(--text-muted); }
+
+  @media (max-width: 480px) {
+    thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tbody tr { border-top: 1px solid var(--border); padding: 12px 4px; }
+    tbody tr:first-child { border-top: none; }
+    tbody td { padding: 3px 12px; border: none !important; }
+    tbody td[data-label]::before { content: attr(data-label); display: block; font-size: 0.68rem; color: var(--text-muted); margin-bottom: 2px; }
+    .table-scroll { overflow-x: visible; }
+    table { min-width: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark">oO SPACE</span>
+      <h1>予約管理</h1>
+    </div>
+    <div class="today tabular" id="today-label"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="label">本日の予約</span><span class="value tabular" id="stat-today">—</span></div>
+    <div class="stat warn"><span class="label">未対応の仮予約</span><span class="value tabular" id="stat-pending">—</span></div>
+    <div class="stat"><span class="label">今月の確定</span><span class="value tabular" id="stat-month">—</span></div>
+    <div class="stat">
+      <span class="label">本日の合計人数</span>
+      <span class="value tabular"><span id="stat-capacity">—</span><small> / 15名</small></span>
+      <div class="cap-bar"><i id="cap-bar-fill" style="width:0%"></i></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="tabs" id="tabs"></div>
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" id="search-input" placeholder="氏名・電話番号で検索">
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>ステータス</th><th>予約日時</th><th>人数</th><th>スペース</th><th>お名前</th><th>電話番号</th><th>飲み放題</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<aside class="panel" id="panel" aria-hidden="true">
+  <div class="panel-head">
+    <div>
+      <h2 id="panel-name">—</h2>
+      <span id="panel-status"></span>
+    </div>
+    <button class="panel-close" id="panel-close" aria-label="閉じる">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <div class="field-group">
+      <h3>予約内容</h3>
+      <dl class="kv"><dt>日時</dt><dd id="d-datetime" class="tabular"></dd></dl>
+      <dl class="kv"><dt>人数</dt><dd id="d-headcount" class="tabular"></dd></dl>
+      <dl class="kv"><dt>スペース</dt><dd id="d-space"></dd></dl>
+      <dl class="kv"><dt>飲み放題</dt><dd id="d-drink"></dd></dl>
+      <dl class="kv"><dt>ご利用履歴</dt><dd id="d-history"></dd></dl>
+    </div>
+    <div class="field-group">
+      <h3>予約者情報</h3>
+      <dl class="kv"><dt>電話番号</dt><dd id="d-phone" class="tabular"></dd></dl>
+      <dl class="kv"><dt>メール</dt><dd id="d-email"></dd></dl>
+      <dl class="kv"><dt>LINE連携</dt><dd id="d-liff"></dd></dl>
+      <dl class="kv"><dt>登録日時</dt><dd id="d-created" class="tabular"></dd></dl>
+    </div>
+    <div class="field-group">
+      <h3>備考</h3>
+      <div class="note-box" id="d-note"></div>
+    </div>
+  </div>
+  <div class="panel-foot" id="panel-actions"></div>
+</aside>
+
+<script>
+  // サーバー(SheetService.getAllReservations)から渡された予約データ。フィールド名はスプレッドシートの列名そのまま。
+  var reservations = <?!= toSafeJson_(reservations) ?>;
+
+  var TABS = [
+    { key: 'all', label: 'すべて' },
+    { key: '仮予約', label: '仮予約' },
+    { key: '確定', label: '確定' },
+    { key: 'キャンセル', label: 'キャンセル' }
+  ];
+  var activeTab = 'all';
+  var searchTerm = '';
+
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function fmtDateTime(value) {
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return String(value || '');
+    var dow = ['日','月','火','水','木','金','土'][d.getDay()];
+    return (d.getMonth() + 1) + '/' + d.getDate() + '(' + dow + ') ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  function fmtDateShort(value) {
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return String(value || '');
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  function dateOnly(value) {
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function statusPillClass(s) {
+    if (s === '確定') return 'ok';
+    if (s === 'キャンセル') return 'danger';
+    return 'pending';
+  }
+
+  function renderTabs() {
+    var el = document.getElementById('tabs');
+    el.innerHTML = TABS.map(function (t) {
+      var count = t.key === 'all' ? reservations.length : reservations.filter(function (r) { return r['ステータス'] === t.key; }).length;
+      return '<button class="tab' + (activeTab === t.key ? ' is-active' : '') + '" data-tab="' + t.key + '">' + t.label + ' <span class="n">' + count + '</span></button>';
+    }).join('');
+    el.querySelectorAll('.tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        activeTab = btn.dataset.tab;
+        renderTabs();
+        renderTable();
+      });
+    });
+  }
+
+  function renderStats() {
+    var today = todayISO();
+    var todays = reservations.filter(function (r) { return dateOnly(r['予約日時']) === today && r['ステータス'] !== 'キャンセル'; });
+    var pendingCount = reservations.filter(function (r) { return r['ステータス'] === '仮予約'; }).length;
+    var thisMonth = today.slice(0, 7);
+    var monthConfirmed = reservations.filter(function (r) { return r['ステータス'] === '確定' && dateOnly(r['予約日時']).slice(0, 7) === thisMonth; }).length;
+    var todayHeadcount = todays.reduce(function (sum, r) { return sum + (r['ステータス'] === '確定' ? (Number(r['人数']) || 0) : 0); }, 0);
+
+    document.getElementById('today-label').textContent = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+    document.getElementById('stat-today').textContent = todays.length + ' 件';
+    document.getElementById('stat-pending').textContent = pendingCount + ' 件';
+    document.getElementById('stat-month').textContent = monthConfirmed + ' 件';
+    document.getElementById('stat-capacity').textContent = todayHeadcount;
+    document.getElementById('cap-bar-fill').style.width = Math.min(100, (todayHeadcount / 15) * 100) + '%';
+  }
+
+  function renderTable() {
+    var list = reservations.filter(function (r) {
+      if (activeTab !== 'all' && r['ステータス'] !== activeTab) return false;
+      if (searchTerm) {
+        var name = String(r['氏名（カタカナ）'] || '');
+        var phone = String(r['電話番号'] || '');
+        if (name.indexOf(searchTerm) === -1 && phone.indexOf(searchTerm) === -1) return false;
+      }
+      return true;
+    }).sort(function (a, b) { return String(a['予約日時']).localeCompare(String(b['予約日時'])); });
+
+    var body = document.getElementById('table-body');
+    if (list.length === 0) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="7">該当する予約はありません</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(function (r) {
+      return '<tr data-id="' + r['ID'] + '">' +
+        '<td data-label="ステータス"><span class="pill ' + statusPillClass(r['ステータス']) + '">' + r['ステータス'] + '</span></td>' +
+        '<td data-label="予約日時" class="tabular">' + fmtDateTime(r['予約日時']) + '</td>' +
+        '<td data-label="人数" class="tabular">' + (r['人数'] || '') + '名</td>' +
+        '<td data-label="スペース"><span class="space-tag">' + String(r['スペース'] || '').replace('・スペース', '') + '</span></td>' +
+        '<td data-label="お名前" class="cell-name">' + (r['氏名（カタカナ）'] || '') + '</td>' +
+        '<td data-label="電話番号" class="tabular">' + (r['電話番号'] || '') + '</td>' +
+        '<td data-label="飲み放題">' + (r['飲み放題'] || '') + '</td>' +
+      '</tr>';
+    }).join('');
+
+    body.querySelectorAll('tr[data-id]').forEach(function (tr) {
+      tr.addEventListener('click', function () { openPanel(tr.dataset.id); });
+    });
+  }
+
+  function findReservation(id) {
+    for (var i = 0; i < reservations.length; i++) {
+      if (String(reservations[i]['ID']) === String(id)) return reservations[i];
+    }
+    return null;
+  }
+
+  function openPanel(id) {
+    var r = findReservation(id);
+    if (!r) return;
+
+    document.querySelectorAll('#table-body tr').forEach(function (tr) {
+      tr.classList.toggle('is-selected', tr.dataset.id === id);
+    });
+
+    document.getElementById('panel-name').textContent = r['氏名（カタカナ）'] || '（氏名未入力）';
+    document.getElementById('panel-status').innerHTML = '<span class="pill ' + statusPillClass(r['ステータス']) + '">' + r['ステータス'] + '</span>';
+    document.getElementById('d-datetime').textContent = fmtDateTime(r['予約日時']);
+    document.getElementById('d-headcount').textContent = (r['人数'] || '') + '名';
+    document.getElementById('d-space').textContent = r['スペース'] || '';
+    document.getElementById('d-drink').textContent = r['飲み放題'] || '';
+    document.getElementById('d-history').textContent = r['ご利用履歴'] || '';
+    document.getElementById('d-phone').textContent = r['電話番号'] || '';
+    document.getElementById('d-email').textContent = r['メールアドレス'] || 'なし';
+    document.getElementById('d-liff').innerHTML = r['LINE UserId']
+      ? '<span class="badge-liff">● 連携済み（LINE通知可）</span>'
+      : '<span class="badge-liff off">● 未連携（通知不可）</span>';
+    document.getElementById('d-created').textContent = fmtDateShort(r['登録日時']);
+    document.getElementById('d-note').textContent = r['備考'] || '（備考なし）';
+
+    var actions = document.getElementById('panel-actions');
+    if (r['ステータス'] === '仮予約') {
+      actions.innerHTML =
+        '<button class="btn danger-ghost" id="act-reject">却下</button>' +
+        '<button class="btn primary" id="act-approve">承認して確定</button>';
+      document.getElementById('act-reject').addEventListener('click', function () { runAction(this, id, 'cancel', 'キャンセル'); });
+      document.getElementById('act-approve').addEventListener('click', function () { runAction(this, id, 'approve', '確定'); });
+    } else if (r['ステータス'] === '確定') {
+      actions.innerHTML =
+        '<button class="btn danger-ghost" id="act-cancel">キャンセルにする</button>' +
+        '<button class="btn ghost" id="act-close2">閉じる</button>';
+      document.getElementById('act-cancel').addEventListener('click', function () { runAction(this, id, 'cancel', 'キャンセル'); });
+      document.getElementById('act-close2').addEventListener('click', closePanel);
+    } else {
+      actions.innerHTML = '<button class="btn ghost" id="act-close3">閉じる</button>';
+      document.getElementById('act-close3').addEventListener('click', closePanel);
+    }
+
+    document.getElementById('panel').classList.add('is-open');
+    document.getElementById('panel').setAttribute('aria-hidden', 'false');
+    document.getElementById('overlay').classList.add('is-open');
+  }
+
+  function runAction(btn, id, kind, newStatus) {
+    document.querySelectorAll('#panel-actions button').forEach(function (b) { b.disabled = true; });
+    btn.textContent = '処理中...';
+
+    function onSuccess(res) {
+      if (!res || !res.success) {
+        alert('エラー: ' + (res && res.error ? res.error : '処理に失敗しました'));
+        document.querySelectorAll('#panel-actions button').forEach(function (b) { b.disabled = false; });
+        return;
+      }
+      var r = findReservation(id);
+      if (r) r['ステータス'] = newStatus;
+      renderTabs();
+      renderStats();
+      renderTable();
+      closePanel();
+    }
+    function onFailure(err) {
+      alert('エラー: ' + (err && err.message ? err.message : err));
+      document.querySelectorAll('#panel-actions button').forEach(function (b) { b.disabled = false; });
+    }
+
+    if (kind === 'approve') {
+      google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).approveReservation(id, {});
+    } else {
+      google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).cancelReservation(id);
+    }
+  }
+
+  function closePanel() {
+    document.getElementById('panel').classList.remove('is-open');
+    document.getElementById('panel').setAttribute('aria-hidden', 'true');
+    document.getElementById('overlay').classList.remove('is-open');
+    document.querySelectorAll('#table-body tr').forEach(function (tr) { tr.classList.remove('is-selected'); });
+  }
+
+  document.getElementById('panel-close').addEventListener('click', closePanel);
+  document.getElementById('overlay').addEventListener('click', closePanel);
+  document.getElementById('search-input').addEventListener('input', function (e) {
+    searchTerm = e.target.value.trim();
+    renderTable();
+  });
+
+  renderTabs();
+  renderStats();
+  renderTable();
+</script>
+</body>
+</html>

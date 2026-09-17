@@ -16,9 +16,14 @@ LINE公式アカウントのLIFFを使ったスペース予約システム。ユ
 ### GAS側のルーティング設計
 doGet/doPostは公開URLを1つしか持てないため、クエリパラメータで内部ルーティングします。
 
-- `doGet(e)`: パラメータなし → 空き状況JSONを返す（フロントのfetch用）／`?page=approval&id=XXX` → HtmlServiceで承認画面(ApprovalPage.html)を返す
+- `doGet(e)`: パラメータなし → 空き状況JSONを返す（フロントのfetch用）／`?page=approval&id=XXX` → HtmlServiceで承認画面(ApprovalPage.html)を返す／`?page=admin` → HtmlServiceで管理者画面(AdminPage.html)を返す
 - `doPost(e)`: フロントからの仮予約データ受信専用
 - 承認画面内の「承認」ボタンは`google.script.run.approveReservation(id, editedData)`でサーバー関数を直接呼ぶ（同一プロジェクト内なのでCORSも発生しない）
+
+### 管理者画面（AdminPage.html）
+- 予約一覧・ステータス別フィルタ・検索・詳細パネルからの承認/却下/キャンセル操作ができるスタッフ向け画面
+- アクセス制限は`isAuthorizedAdmin_()`が担う：`Session.getActiveUser().getEmail()`を取得し、スクリプトプロパティ`ADMIN_EMAILS`（カンマ区切りのメールアドレス一覧）と照合する。未許可・匿名アクセスの場合は一覧データを含まない「アクセス権がありません」画面を返す
+- 匿名アクセスを許可している既存のWebアプリデプロイ（LIFF・doPost用）では`Session.getActiveUser()`が空になり誰であってもアクセス権なし扱いになるため、管理者用には**ドメイン制限（Anyone within [ドメイン]）を設定した別デプロイ**を用意し、そちらのURLをスタッフに共有する。コードは同一なので`clasp push`後は両方のデプロイを更新する
 
 ### CORSの注意点（重要）
 GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フロントから`Content-Type: application/json`でPOSTするとプリフライトで失敗するので、`Content-Type: text/plain;charset=utf-8`でJSON文字列を送り、GAS側は`JSON.parse(e.postData.contents)`で受け取ってください。
@@ -27,7 +32,7 @@ GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フ
 時限トリガーは`clasp push`だけでは有効化されません。トリガー登録用のセットアップ関数（例: `createDailyTrigger()`）を用意し、GASエディタで初回のみ手動実行してください。
 
 ## シークレット管理
-GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートID、カレンダーID（`CALENDAR_ID`）は必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
+GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートID、カレンダーID（`CALENDAR_ID`）、管理者画面の許可メールアドレス一覧（`ADMIN_EMAILS`）は必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
 
 ## ディレクトリ構成
 README.mdの構成図を参照してください（gas/配下はclaspでプッシュする対象）。

@@ -164,11 +164,28 @@ var SheetService = (function () {
     return result;
   }
 
+  function getAllReservations() {
+    try {
+      const sheet = getSheet_();
+      const values = sheet.getDataRange().getValues();
+      const headers = values[0];
+      const results = [];
+      for (let i = 1; i < values.length; i++) {
+        results.push(rowToObject_(headers, values[i]));
+      }
+      return results;
+    } catch (err) {
+      console.error('SheetService.getAllReservations failed', err);
+      throw err;
+    }
+  }
+
   return {
     addProvisionalReservation: addProvisionalReservation,
     getReservationById: getReservationById,
     updateReservation: updateReservation,
     getConfirmedReservationsForDate: getConfirmedReservationsForDate,
-    getAvailability: getAvailability
+    getAvailability: getAvailability,
+    getAllReservations: getAllReservations
   };
 })();

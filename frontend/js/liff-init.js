@@ -1,8 +1,7 @@
 // LIFF初期化。テスト用LIFF ID（Oo space予約）。本番公開時は本番チャネルのIDに差し替える
 const LIFF_ID = '2011404271-2LcJbLkK';
 
-// clasp deploy後のGAS WebアプリURL（会社アカウント: tomoko.kawai@sinnovation.jp のプロジェクトにデプロイ）
-const GAS_ENDPOINT_URL = 'https://script.google.com/macros/s/AKfycbygqrUxrkz4u9JY45Yh_iZBftZHS_jMgLQx9PA0eydk2fpP8_oyOyiqF430yUMq8rtk/exec';
+// GAS_ENDPOINT_URLはjs/config.js（このスクリプトより先に読み込む）で定義
 
 let currentUserId = null;
 

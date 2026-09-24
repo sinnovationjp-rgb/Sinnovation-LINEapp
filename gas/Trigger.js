@@ -11,6 +11,20 @@ function sendReminders() {
       if (userId) {
         LineService.pushMessage(userId, message);
       }
+
+      const email = reservation['メールアドレス'];
+      if (email) {
+        try {
+          MailApp.sendEmail(
+            email,
+            '【oO SPACE】明日のご予約について',
+            `明日のご予約について、内容をご確認ください。\n\n${message}\n\nご不明点がございましたら店舗までお問い合わせください。`
+          );
+        } catch (mailErr) {
+          console.error(`sendReminders: メール送信に失敗しました（宛先 ${email}）`, mailErr);
+        }
+      }
+
       NotifyService.send(`【リマインド】明日のご予約\n${message}`);
     });
   } catch (err) {

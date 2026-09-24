@@ -78,7 +78,13 @@ button {
 .field-label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--muted); margin: 0 0 8px; }
 
 /* ---- カレンダー ---- */
-.cal-month { font-size: 0.95rem; font-weight: 700; margin-bottom: 10px; }
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-month { font-size: 0.95rem; font-weight: 700; }
+.cal-nav-btn {
+  width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #fff;
+  color: #211c17; font-size: 1.1rem; line-height: 1; cursor: pointer;
+}
+.cal-nav-btn:disabled { opacity: 0.35; cursor: default; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 4px; }
 .cal-dow { text-align: center; font-size: 0.72rem; color: #8b8177; padding-bottom: 4px; }
 .cal-dow.is-sun { color: #d1453a; }

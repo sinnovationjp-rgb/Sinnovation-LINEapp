@@ -18,6 +18,11 @@ function doPost(e) {
     return jsonResponse_({ success: false, error: 'invalid request' });
   }
 
+  if (!data.datetime || !data.name || !data.phone) {
+    console.error('doPost: 必須項目が不足しています', data);
+    return jsonResponse_({ success: false, error: '日時・氏名・電話番号は必須です' });
+  }
+
   try {
     const id = SheetService.addProvisionalReservation(data);
     const approvalUrl = ScriptApp.getService().getUrl() + '?page=approval&id=' + id;
@@ -36,7 +41,16 @@ function approveReservation(id, editedData) {
       throw new Error(`予約ID ${id} が見つかりません`);
     }
 
-    const confirmed = Object.assign({}, reservation, editedData || {});
+    // editedDataは承認画面のフォームから届く値。LINE UserIdなどフォームにない項目まで
+    // 上書きされないよう、フォームが実際に持つ項目だけを許可リストとして反映する
+    const EDITABLE_FIELDS = ['予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名（カタカナ）', '電話番号', 'メールアドレス', '備考'];
+    const safeEdits = {};
+    EDITABLE_FIELDS.forEach((key) => {
+      if (editedData && Object.prototype.hasOwnProperty.call(editedData, key)) {
+        safeEdits[key] = editedData[key];
+      }
+    });
+    const confirmed = Object.assign({}, reservation, safeEdits);
 
     SheetService.updateReservation(id, {
       'ステータス': '確定',

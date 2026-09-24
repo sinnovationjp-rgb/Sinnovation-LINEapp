@@ -255,6 +255,16 @@
     return 'pending';
   }
 
+  // 予約データはお客様が入力した値をそのまま含むため、innerHTMLへ埋め込む前に必ずエスケープする
+  function escapeHtml_(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function renderTabs() {
     var el = document.getElementById('tabs');
     el.innerHTML = TABS.map(function (t) {
@@ -303,14 +313,14 @@
       return;
     }
     body.innerHTML = list.map(function (r) {
-      return '<tr data-id="' + r['ID'] + '">' +
-        '<td data-label="ステータス"><span class="pill ' + statusPillClass(r['ステータス']) + '">' + r['ステータス'] + '</span></td>' +
-        '<td data-label="予約日時" class="tabular">' + fmtDateTime(r['予約日時']) + '</td>' +
-        '<td data-label="人数" class="tabular">' + (r['人数'] || '') + '名</td>' +
-        '<td data-label="スペース"><span class="space-tag">' + String(r['スペース'] || '').replace('・スペース', '') + '</span></td>' +
-        '<td data-label="お名前" class="cell-name">' + (r['氏名（カタカナ）'] || '') + '</td>' +
-        '<td data-label="電話番号" class="tabular">' + (r['電話番号'] || '') + '</td>' +
-        '<td data-label="飲み放題">' + (r['飲み放題'] || '') + '</td>' +
+      return '<tr data-id="' + escapeHtml_(r['ID']) + '">' +
+        '<td data-label="ステータス"><span class="pill ' + statusPillClass(r['ステータス']) + '">' + escapeHtml_(r['ステータス']) + '</span></td>' +
+        '<td data-label="予約日時" class="tabular">' + escapeHtml_(fmtDateTime(r['予約日時'])) + '</td>' +
+        '<td data-label="人数" class="tabular">' + escapeHtml_(r['人数'] || '') + '名</td>' +
+        '<td data-label="スペース"><span class="space-tag">' + escapeHtml_(String(r['スペース'] || '').replace('・スペース', '')) + '</span></td>' +
+        '<td data-label="お名前" class="cell-name">' + escapeHtml_(r['氏名（カタカナ）'] || '') + '</td>' +
+        '<td data-label="電話番号" class="tabular">' + escapeHtml_(r['電話番号'] || '') + '</td>' +
+        '<td data-label="飲み放題">' + escapeHtml_(r['飲み放題'] || '') + '</td>' +
       '</tr>';
     }).join('');
 
@@ -335,7 +345,7 @@
     });
 
     document.getElementById('panel-name').textContent = r['氏名（カタカナ）'] || '（氏名未入力）';
-    document.getElementById('panel-status').innerHTML = '<span class="pill ' + statusPillClass(r['ステータス']) + '">' + r['ステータス'] + '</span>';
+    document.getElementById('panel-status').innerHTML = '<span class="pill ' + statusPillClass(r['ステータス']) + '">' + escapeHtml_(r['ステータス']) + '</span>';
     document.getElementById('d-datetime').textContent = fmtDateTime(r['予約日時']);
     document.getElementById('d-headcount').textContent = (r['人数'] || '') + '名';
     document.getElementById('d-space').textContent = r['スペース'] || '';

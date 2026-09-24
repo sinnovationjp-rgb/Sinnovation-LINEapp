@@ -151,11 +151,22 @@ function cancelReservation(id) {
   }
 }
 
+// 予約日時をお客様・スタッフ向けに分かりやすい表記に変換する（Dateオブジェクト・ISO文字列どちらにも対応）
+function formatDateTimeForDisplay_(value) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return String(value);
+  const dows = ['日', '月', '火', '水', '木', '金', '土'];
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mi = String(date.getMinutes()).padStart(2, '0');
+  return `${date.getMonth() + 1}月${date.getDate()}日(${dows[date.getDay()]}) ${hh}:${mi}`;
+}
+
 function buildProvisionalMessage_(id, data, approvalUrl) {
   return [
     '新規予約リクエストがありました',
-    `日時: ${data.datetime || '未入力'}`,
-    `人数: ${data.headcount || '未入力'}`,
+    `日時: ${data.datetime ? formatDateTimeForDisplay_(data.datetime) : '未入力'}`,
+    `人数: ${data.headcount ? data.headcount + '名' : '未入力'}`,
     `スペース: ${data.space || '未入力'}`,
     `飲み放題: ${data.drink || '未入力'}`,
     `ご利用履歴: ${data.usageHistory || '未入力'}`,
@@ -170,8 +181,8 @@ function buildProvisionalMessage_(id, data, approvalUrl) {
 function buildConfirmedMessage_(reservation) {
   return [
     '予約が確定しました',
-    `日時: ${reservation['予約日時'] || ''}`,
-    `人数: ${reservation['人数'] || ''}`,
+    `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
+    `人数: ${reservation['人数'] || ''}名`,
     `スペース: ${reservation['スペース'] || ''}`,
     `飲み放題: ${reservation['飲み放題'] || ''}`,
     `氏名: ${reservation['氏名（カタカナ）'] || ''}`
@@ -181,8 +192,8 @@ function buildConfirmedMessage_(reservation) {
 function buildCancelledMessage_(reservation, wasConfirmed) {
   return [
     wasConfirmed ? '確定済みの予約がキャンセルされました' : '仮予約が却下されました',
-    `日時: ${reservation['予約日時'] || ''}`,
-    `人数: ${reservation['人数'] || ''}`,
+    `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
+    `人数: ${reservation['人数'] || ''}名`,
     `スペース: ${reservation['スペース'] || ''}`,
     `氏名: ${reservation['氏名（カタカナ）'] || ''}`
   ].join('\n');

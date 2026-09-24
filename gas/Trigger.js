@@ -20,8 +20,8 @@ function sendReminders() {
 
 function buildReminderMessage_(reservation) {
   return [
-    `日時: ${reservation['予約日時'] || ''}`,
-    `人数: ${reservation['人数'] || ''}`,
+    `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
+    `人数: ${reservation['人数'] || ''}名`,
     `スペース: ${reservation['スペース'] || ''}`,
     `飲み放題: ${reservation['飲み放題'] || ''}`,
     `氏名: ${reservation['氏名（カタカナ）'] || ''}`

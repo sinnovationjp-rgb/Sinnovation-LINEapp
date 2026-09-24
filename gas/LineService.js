@@ -36,8 +36,9 @@ var LineService = (function () {
   function pushConfirmation(userId, reservation) {
     const text = [
       'ご予約が確定しました',
-      `日時: ${reservation['予約日時'] || ''}`,
-      `人数: ${reservation['人数'] || ''}`,
+      '',
+      `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
+      `人数: ${reservation['人数'] || ''}名`,
       `スペース: ${reservation['スペース'] || ''}`,
       `飲み放題: ${reservation['飲み放題'] || ''}`
     ].join('\n');
@@ -47,9 +48,11 @@ var LineService = (function () {
   function pushCancellation(userId, reservation, wasConfirmed) {
     const text = [
       wasConfirmed ? 'ご予約がキャンセルとなりました' : '大変申し訳ございませんが、今回のご予約はお受けできませんでした',
-      `日時: ${reservation['予約日時'] || ''}`,
-      `人数: ${reservation['人数'] || ''}`,
+      '',
+      `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
+      `人数: ${reservation['人数'] || ''}名`,
       `スペース: ${reservation['スペース'] || ''}`,
+      '',
       'ご不明な点がございましたら店舗までお問い合わせください。'
     ].join('\n');
     pushMessage(userId, text);

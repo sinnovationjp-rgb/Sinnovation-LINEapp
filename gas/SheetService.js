@@ -1,6 +1,6 @@
 var SheetService = (function () {
   const SHEET_NAME = '予約一覧';
-  const HEADERS = ['ID', 'ステータス', '予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名（カタカナ）', '電話番号', 'メールアドレス', '備考', 'LINE UserId', '登録日時'];
+  const HEADERS = ['ID', 'ステータス', '予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名（カタカナ）', '電話番号', 'メールアドレス', '備考', 'LINE UserId', '登録日時', 'カレンダーイベントID'];
   const DAILY_CAPACITY = 15; // 1日あたりの合計人数の上限（スペース合算、目安表示用）
 
   function getSheet_() {
@@ -68,7 +68,8 @@ var SheetService = (function () {
         sanitizeCell_(data.email || ''),
         sanitizeCell_(data.note || ''),
         sanitizeCell_(data.userId || ''),
-        new Date()
+        new Date(),
+        '' // カレンダーイベントID（確定時にセットされる）
       ]);
       return id;
     } catch (err) {

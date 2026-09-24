@@ -52,7 +52,7 @@ function approveReservation(id, editedData) {
     });
 
     try {
-      CalendarService.createEvent({
+      const event = CalendarService.createEvent({
         datetime: confirmed['予約日時'],
         headcount: confirmed['人数'],
         space: confirmed['スペース'],
@@ -60,6 +60,7 @@ function approveReservation(id, editedData) {
         name: confirmed['氏名（カタカナ）'],
         note: confirmed['備考']
       });
+      SheetService.updateReservation(id, { 'カレンダーイベントID': event.getId() });
     } catch (calendarErr) {
       console.error(`approveReservation: カレンダー登録に失敗しました（予約ID ${id}）。スプレッドシートの確定・通知は続行します`, calendarErr);
     }
@@ -125,6 +126,14 @@ function cancelReservation(id) {
     const wasConfirmed = reservation['ステータス'] === '確定';
 
     SheetService.updateReservation(id, { 'ステータス': 'キャンセル' });
+
+    if (wasConfirmed && reservation['カレンダーイベントID']) {
+      try {
+        CalendarService.deleteEvent(reservation['カレンダーイベントID']);
+      } catch (calendarErr) {
+        console.error(`cancelReservation: カレンダーの予定削除に失敗しました（予約ID ${id}）`, calendarErr);
+      }
+    }
 
     NotifyService.send(buildCancelledMessage_(reservation, wasConfirmed));
 

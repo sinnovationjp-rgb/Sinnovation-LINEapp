@@ -16,7 +16,20 @@ var CalendarService = (function () {
     return calendar.createEvent(title, start, end, { description: reservation.note || '' });
   }
 
+  function deleteEvent(eventId) {
+    if (!eventId) return;
+    const calendar = CalendarApp.getCalendarById(getCalendarId_());
+    if (!calendar) {
+      throw new Error('CALENDAR_IDのカレンダーが見つからないかアクセス権がありません');
+    }
+    const event = calendar.getEventById(eventId);
+    if (event) {
+      event.deleteEvent();
+    }
+  }
+
   return {
-    createEvent: createEvent
+    createEvent: createEvent,
+    deleteEvent: deleteEvent
   };
 })();

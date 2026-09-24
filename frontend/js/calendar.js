@@ -48,20 +48,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dows = ['日', '月', '火', '水', '木', '金', '土'];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const year = today.getFullYear();
-  const month = today.getMonth();
 
   const calMonthEl = document.getElementById('cal-month');
   const calGridEl = document.getElementById('cal-grid');
-  if (calMonthEl) calMonthEl.textContent = `${year}年${month + 1}月`;
+  const calPrevBtn = document.getElementById('cal-prev');
+  const calNextBtn = document.getElementById('cal-next');
 
   const availability = await fetchAvailability();
   const availabilityMap = {};
   availability.forEach(({ date, available }) => {
     availabilityMap[date] = available;
   });
+  const maxDate = availability.length
+    ? new Date(availability[availability.length - 1].date + 'T00:00:00')
+    : today;
 
-  if (calGridEl) {
+  let viewYear = today.getFullYear();
+  let viewMonth = today.getMonth();
+
+  function renderMonth() {
+    if (!calGridEl) return;
+    if (calMonthEl) calMonthEl.textContent = `${viewYear}年${viewMonth + 1}月`;
+
+    const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
+    const isMaxMonth = viewYear === maxDate.getFullYear() && viewMonth === maxDate.getMonth();
+    if (calPrevBtn) calPrevBtn.disabled = isCurrentMonth;
+    if (calNextBtn) calNextBtn.disabled = isMaxMonth;
+
+    calGridEl.innerHTML = '';
     dows.forEach((d, i) => {
       const el = document.createElement('div');
       el.className = 'cal-dow' + (i === 0 ? ' is-sun' : i === 6 ? ' is-sat' : '');
@@ -69,34 +83,49 @@ document.addEventListener('DOMContentLoaded', async () => {
       calGridEl.appendChild(el);
     });
 
-    const firstDow = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
     for (let i = 0; i < firstDow; i++) {
       calGridEl.appendChild(document.createElement('div'));
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = isoDate(year, month, day);
-      const isPast = day < today.getDate();
+      const cellDate = new Date(viewYear, viewMonth, day);
+      const dateStr = isoDate(viewYear, viewMonth, day);
+      const isOutOfRange = cellDate < today || cellDate > maxDate;
       const available = availabilityMap[dateStr];
 
       const cell = document.createElement('div');
-      const cellIsAvailable = !isPast && available === true;
-      cell.className = 'cal-cell' + (isPast || !cellIsAvailable ? ' is-past' : ' is-available');
+      const cellIsAvailable = !isOutOfRange && available === true;
+      cell.className = 'cal-cell' + (isOutOfRange || !cellIsAvailable ? ' is-past' : ' is-available');
       cell.innerHTML = `<span class="cal-num">${day}</span><span class="cal-mark">${cellIsAvailable ? '○' : '－'}</span>`;
 
       if (cellIsAvailable) {
+        if (dateStr === reserveState.dateISO) cell.classList.add('is-selected');
         cell.addEventListener('click', () => {
           document.querySelectorAll('.cal-cell.is-selected').forEach((el) => el.classList.remove('is-selected'));
           cell.classList.add('is-selected');
           reserveState.dateISO = dateStr;
-          reserveState.dateLabel = `${month + 1}/${day}(${dows[new Date(year, month, day).getDay()]})`;
+          reserveState.dateLabel = `${viewMonth + 1}/${day}(${dows[cellDate.getDay()]})`;
           updateStep1Ready();
         });
       }
       calGridEl.appendChild(cell);
     }
   }
+
+  calPrevBtn?.addEventListener('click', () => {
+    viewMonth -= 1;
+    if (viewMonth < 0) { viewMonth = 11; viewYear -= 1; }
+    renderMonth();
+  });
+  calNextBtn?.addEventListener('click', () => {
+    viewMonth += 1;
+    if (viewMonth > 11) { viewMonth = 0; viewYear += 1; }
+    renderMonth();
+  });
+
+  renderMonth();
 
   const peopleRow = document.getElementById('people-row');
   if (peopleRow) {

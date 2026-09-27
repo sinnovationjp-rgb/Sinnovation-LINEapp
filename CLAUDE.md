@@ -51,3 +51,32 @@ TASKS.mdのPhase順に、1フェーズずつ実装→動作確認→次フェー
 - develop / feature/xxx: 開発ブランチ、PR経由でmainにマージ
 - GitHub Pages公開設定はSettings > Pagesでmain（または/docs）を指定
 - 発行されたURLをLINE DevelopersのLIFFエンドポイントURLに登録
+
+## 進行中の作業メモ（引き継ぎ用）
+
+### 本番の公式LINEアカウントへの切り替え作業（2026-09-27時点、未完了）
+これまで開発に使っていたテスト用LIFF（`LIFF_ID = '2011404271-2LcJbLkK'`、`frontend/js/liff-init.js`）を、実際に運用する公式アカウント「oO SPACE Niigata」（ベーシックID `@186lmmed`）に切り替える作業を進行中。
+
+**ここまで完了したこと**
+- LINE Official Account Manager（manager.line.biz）で `@186lmmed` のMessaging APIを有効化し、チャネルID・チャネルシークレットを取得済み
+
+**現在つまずいている点**
+- LINE Developersコンソールで、有効化したはずの「oO SPACE Niigata」Messaging APIチャネルの所在が分からない状態
+  - プロバイダー「Oo space」: 中に「oO SPACE Niigata」という名前の**LINEログイン**チャネル（開発中、権限なし）が存在するが、Messaging APIチャネルは見当たらない。この権限なしチャネルの素性は不明（過去に誰かが作った可能性）
+  - プロバイダー「oO SPACE NIIGATA」（名前が紛らわしいが別物）: チャネル登録なし、空。ユーザーは「関係ない」と判断し削除を検討中
+  - プロバイダー「エスイノベーションテストアカウント」: 以前のテスト用Messaging APIチャネルが存在（本件とは無関係）
+  - コンソールホームの「最近閲覧したチャネル」にも該当チャネルは出てこず
+- 次の一手: プロバイダー一覧（3件）をすべて確認する、またはコンソールの検索窓で「oO SPACE」「186lmmed」を検索して、有効化したチャネルの実際の所在を特定する
+
+**特定できたら進める手順**
+1. そのプロバイダー内で「LINE Login」チャネルを新規作成（アプリタイプ: ウェブアプリ）
+2. LIFFタブでLIFFアプリを追加。エンドポイントURLは `https://sinnovationjp-rgb.github.io/Sinnovation-LINEapp/frontend/index.html`
+3. LINE Loginチャネルの「チャネル基本設定」→「LINE公式アカウントとのリンク」で `@186lmmed` とリンク
+4. 新しいLIFF IDを`frontend/js/liff-init.js`の`LIFF_ID`に反映（コード修正・コミット・PR・マージ）
+5. Messaging APIチャネル側でチャネルアクセストークン（長期）を発行し、GASのスクリプトプロパティ`LINE_CHANNEL_ACCESS_TOKEN`を更新
+6. manager.line.biz（`@186lmmed`側）でリッチメニューを設定し、リンク先をLIFF URL（`https://liff.line.me/<新LIFF ID>`）にする
+
+### その他、確認が取れていない項目
+- `fixPhoneNumberLeadingZeros`（GAS）の実行結果
+- XSS修正（PR #30）の再テスト結果（管理者画面で`<img src=x onerror=...>`が実行されずテキスト表示になるか）
+- `docs/test-checklist.md`の全項目の実施状況

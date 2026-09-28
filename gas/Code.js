@@ -220,7 +220,7 @@ function buildCancelledMessage_(reservation, wasConfirmed) {
 function sendEmail_(to, subject, body) {
   if (!to) return;
   try {
-    MailApp.sendEmail(to, subject, body);
+    MailApp.sendEmail({ to: to, subject: subject, body: body, name: 'oO SPACE' });
   } catch (err) {
     console.error(`sendEmail_: メール送信に失敗しました（宛先 ${to}）`, err);
   }

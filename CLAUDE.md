@@ -69,21 +69,21 @@ TASKS.mdのPhase順に、1フェーズずつ実装→動作確認→次フェー
 - 齋藤さんの権限で新規にLINE Loginチャネル「oO SPACE予約」を作成し、LIFFアプリを追加（LIFF ID: `2011761592-fPsPphNA`、エンドポイントURL: `https://sinnovationjp-rgb.github.io/Sinnovation-LINEapp/frontend/index.html`）→ `frontend/js/liff-init.js`の`LIFF_ID`をこの値に更新しmainにマージ済み
 - `LineService.js`を修正し、`LINE_CHANNEL_ID`+`LINE_CHANNEL_SECRET`があれば送信の都度ステートレスなアクセストークン（15分有効、`https://api.line.me/oauth2/v3/token`）を取得できるようにした。これによりチャネルアクセストークンの発行だけは権限問題を回避できる見込み
 
-**現在つまずいている点（最重要ブロッカー）**
-- 齋藤さんのLINE DevelopersアカウントとMessaging API「oO SPACE Niigata」（社長個人のLINEアカウントで有効化）が**別プロバイダー**に属しており、LINE Loginチャネルとのリンク（「リンクされたLINE公式アカウント」）ができない
-  - LINE公式ドキュメントで確認済み: リンクには「同じプロバイダーに属する」「LINE Loginチャネルの管理者権限とLINE公式アカウントの管理者権限の両方を持つ」の両方が必須。チャネルID/シークレットだけでは回避不可（プロバイダーの所在もAPIからは分からない）
-  - 上記で作成した「oO SPACE予約」チャネルは、oO SPACE Niigataとリンクできないプロバイダーに作られてしまっており、現状使えない（保留中）
-- 対応中: 社長に、developers.line.biz上で齋藤さんを対象プロバイダーの管理者として招待してもらうか、社長自身にLINE Loginチャネル作成〜リンクまでを実施してもらうよう依頼済み。返答待ち
+**プロバイダー権限の問題は「リンク不要」と判明し実質解消**
+- 齋藤さんのLINE DevelopersアカウントとMessaging API「oO SPACE Niigata」（社長個人のLINEアカウントで有効化）は別プロバイダーに属しており、LINE Loginチャネルとのリンク（「リンクされたLINE公式アカウント」）はできない
+- ただし、リンクは「友だち追加オプション（LIFF未ログイン時に友だち追加を促す画面）」のためだけの設定であり、プッシュ通知が届くかどうかとは無関係と判明（以前のテスト用チャネルも未リンクのまま正常に通知が届いていたことで確認済み）。リッチメニュー経由でLIFFを開く運用（＝開く前から必ず友だちである）であればリンクなしで問題ない
+- そのため、作成済みの「oO SPACE予約」LINE Loginチャネル（未リンク、LIFF ID: `2011761592-fPsPphNA`）をそのまま本番用として使う方針に変更。社長へのプロバイダー権限依頼は急ぎ不要になった旨を伝える予定（未伝達なら伝える）
 
-**権限問題が解決したら進める手順**
-1. 正しいプロバイダー内で新規にLINE Loginチャネルを作成（アプリタイプ: ウェブアプリ）。前述の「oO SPACE予約」チャネルは使えないので作り直しになる
-2. LIFFタブでLIFFアプリを追加。エンドポイントURLは `https://sinnovationjp-rgb.github.io/Sinnovation-LINEapp/frontend/index.html`
-3. LINE Loginチャネルの「チャネル基本設定」→「LINE公式アカウントとのリンク」で `@186lmmed` とリンク（今度は選択肢に出てくるはず）
-4. 新しいLIFF IDを`frontend/js/liff-init.js`の`LIFF_ID`に反映（コード修正・コミット・PR・マージ）
-5. GASのスクリプトプロパティに`LINE_CHANNEL_ID`・`LINE_CHANNEL_SECRET`（社長から取得済み）を登録。これでLINE通知は動くはず（長期トークンが欲しければ別途Console UIから発行しても良い）
-6. manager.line.biz（`@186lmmed`側）でリッチメニューを設定し、リンク先をLIFF URL（`https://liff.line.me/<新LIFF ID>`）にする
+**チャネルアクセストークンの対応状況**
+- GAS（Space予約管理プロジェクト）のスクリプトプロパティに`LINE_CHANNEL_ID`・`LINE_CHANNEL_SECRET`（社長から取得）を登録済み
+- 古い`LINE_CHANNEL_ACCESS_TOKEN`（siturt0330時代の値）はスクリプトプロパティから削除済み → `LineService.getAccessToken_()`が`LINE_CHANNEL_ID`/`LINE_CHANNEL_SECRET`からステートレストークンを取得する経路に切り替わっているはず
+
+**残っている作業**
+1. `clasp push`は完了。**デプロイ（新バージョン公開）が川合さん待ち**（Space予約管理プロジェクトのオーナーが川合さんのため、齋藤さんにはデプロイ権限がない）
+2. デプロイ後、リッチメニュー経由（またはLIFF URL直接）で予約→承認し、LINE通知が実際に届くか確認
+3. manager.line.biz（`@186lmmed`側）でリッチメニューを設定し、リンク先を `https://liff.line.me/2011761592-fPsPphNA` にする（デプロイ待たずに進行可能）
+4. `fixPhoneNumberLeadingZeros`（GAS）の実行、`sendReminders`用トリガー（`createDailyTrigger`）がこのプロジェクトに登録されているかの確認（いずれもデプロイ不要、齋藤さん側で完結可能）
 
 ### その他、確認が取れていない項目
-- `fixPhoneNumberLeadingZeros`（GAS）の実行結果
 - XSS修正（PR #30）の再テスト結果（管理者画面で`<img src=x onerror=...>`が実行されずテキスト表示になるか）
 - `docs/test-checklist.md`の全項目の実施状況

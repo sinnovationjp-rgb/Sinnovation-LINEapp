@@ -34,6 +34,13 @@ GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フ
 ## シークレット管理
 GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートID、カレンダーID（`CALENDAR_ID`）、管理者画面の許可メールアドレス一覧（`ADMIN_EMAILS`）は必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
 
+### LINEチャネルアクセストークンの2つの登録方法
+`LineService.getAccessToken_()`は以下の優先順位でトークンを取得する。
+1. `LINE_CHANNEL_ACCESS_TOKEN`（Developers Consoleで発行する長期トークン）が設定されていればそれを使う
+2. 未設定の場合、`LINE_CHANNEL_ID`と`LINE_CHANNEL_SECRET`から、送信のたびに15分だけ有効な「ステートレスなアクセストークン」を`https://api.line.me/oauth2/v3/token`経由で取得する（Developers Consoleでの発行操作・プロバイダーへのアクセス権限が不要）
+
+後者は、Messaging APIチャネルが入っているプロバイダーへの管理者権限がない場合の代替手段として使える。
+
 ## ディレクトリ構成
 README.mdの構成図を参照してください（gas/配下はclaspでプッシュする対象）。
 
@@ -59,21 +66,21 @@ TASKS.mdのPhase順に、1フェーズずつ実装→動作確認→次フェー
 
 **ここまで完了したこと**
 - LINE Official Account Manager（manager.line.biz）で `@186lmmed` のMessaging APIを有効化し、チャネルID・チャネルシークレットを取得済み
+- 齋藤さんの権限で新規にLINE Loginチャネル「oO SPACE予約」を作成し、LIFFアプリを追加（LIFF ID: `2011761592-fPsPphNA`、エンドポイントURL: `https://sinnovationjp-rgb.github.io/Sinnovation-LINEapp/frontend/index.html`）→ `frontend/js/liff-init.js`の`LIFF_ID`をこの値に更新しmainにマージ済み
+- `LineService.js`を修正し、`LINE_CHANNEL_ID`+`LINE_CHANNEL_SECRET`があれば送信の都度ステートレスなアクセストークン（15分有効、`https://api.line.me/oauth2/v3/token`）を取得できるようにした。これによりチャネルアクセストークンの発行だけは権限問題を回避できる見込み
 
-**現在つまずいている点**
-- LINE Developersコンソールで、有効化したはずの「oO SPACE Niigata」Messaging APIチャネルの所在が分からない状態
-  - プロバイダー「Oo space」: 中に「oO SPACE Niigata」という名前の**LINEログイン**チャネル（開発中、権限なし）が存在するが、Messaging APIチャネルは見当たらない。この権限なしチャネルの素性は不明（過去に誰かが作った可能性）
-  - プロバイダー「oO SPACE NIIGATA」（名前が紛らわしいが別物）: チャネル登録なし、空。ユーザーは「関係ない」と判断し削除を検討中
-  - プロバイダー「エスイノベーションテストアカウント」: 以前のテスト用Messaging APIチャネルが存在（本件とは無関係）
-  - コンソールホームの「最近閲覧したチャネル」にも該当チャネルは出てこず
-- 次の一手: プロバイダー一覧（3件）をすべて確認する、またはコンソールの検索窓で「oO SPACE」「186lmmed」を検索して、有効化したチャネルの実際の所在を特定する
+**現在つまずいている点（最重要ブロッカー）**
+- 齋藤さんのLINE DevelopersアカウントとMessaging API「oO SPACE Niigata」（社長個人のLINEアカウントで有効化）が**別プロバイダー**に属しており、LINE Loginチャネルとのリンク（「リンクされたLINE公式アカウント」）ができない
+  - LINE公式ドキュメントで確認済み: リンクには「同じプロバイダーに属する」「LINE Loginチャネルの管理者権限とLINE公式アカウントの管理者権限の両方を持つ」の両方が必須。チャネルID/シークレットだけでは回避不可（プロバイダーの所在もAPIからは分からない）
+  - 上記で作成した「oO SPACE予約」チャネルは、oO SPACE Niigataとリンクできないプロバイダーに作られてしまっており、現状使えない（保留中）
+- 対応中: 社長に、developers.line.biz上で齋藤さんを対象プロバイダーの管理者として招待してもらうか、社長自身にLINE Loginチャネル作成〜リンクまでを実施してもらうよう依頼済み。返答待ち
 
-**特定できたら進める手順**
-1. そのプロバイダー内で「LINE Login」チャネルを新規作成（アプリタイプ: ウェブアプリ）
+**権限問題が解決したら進める手順**
+1. 正しいプロバイダー内で新規にLINE Loginチャネルを作成（アプリタイプ: ウェブアプリ）。前述の「oO SPACE予約」チャネルは使えないので作り直しになる
 2. LIFFタブでLIFFアプリを追加。エンドポイントURLは `https://sinnovationjp-rgb.github.io/Sinnovation-LINEapp/frontend/index.html`
-3. LINE Loginチャネルの「チャネル基本設定」→「LINE公式アカウントとのリンク」で `@186lmmed` とリンク
+3. LINE Loginチャネルの「チャネル基本設定」→「LINE公式アカウントとのリンク」で `@186lmmed` とリンク（今度は選択肢に出てくるはず）
 4. 新しいLIFF IDを`frontend/js/liff-init.js`の`LIFF_ID`に反映（コード修正・コミット・PR・マージ）
-5. Messaging APIチャネル側でチャネルアクセストークン（長期）を発行し、GASのスクリプトプロパティ`LINE_CHANNEL_ACCESS_TOKEN`を更新
+5. GASのスクリプトプロパティに`LINE_CHANNEL_ID`・`LINE_CHANNEL_SECRET`（社長から取得済み）を登録。これでLINE通知は動くはず（長期トークンが欲しければ別途Console UIから発行しても良い）
 6. manager.line.biz（`@186lmmed`側）でリッチメニューを設定し、リンク先をLIFF URL（`https://liff.line.me/<新LIFF ID>`）にする
 
 ### その他、確認が取れていない項目

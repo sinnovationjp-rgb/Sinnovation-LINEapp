@@ -1,5 +1,5 @@
-// LIFF初期化。テスト用LIFF ID（Oo space予約）。本番公開時は本番チャネルのIDに差し替える
-const LIFF_ID = '2011404271-2LcJbLkK';
+// LIFF初期化。本番用LIFF ID（oO SPACE Niigata公式アカウント連携）
+const LIFF_ID = '2011761592-fPsPphNA';
 
 // GAS_ENDPOINT_URLはjs/config.js（このスクリプトより先に読み込む）で定義
 

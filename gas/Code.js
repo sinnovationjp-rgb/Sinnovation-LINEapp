@@ -27,6 +27,7 @@ function doPost(e) {
     const id = SheetService.addProvisionalReservation(data);
     const approvalUrl = ScriptApp.getService().getUrl() + '?page=approval&id=' + id;
     NotifyService.send(buildProvisionalMessage_(id, data, approvalUrl));
+    sendEmail_(data.email, '【oO SPACE】ご予約を受け付けました', buildProvisionalEmailBody_(data));
     return jsonResponse_({ success: true, id: id });
   } catch (err) {
     console.error('doPost: 仮予約処理に失敗しました', err);
@@ -87,6 +88,8 @@ function approveReservation(id, editedData) {
     } else {
       console.warn(`approveReservation: LINE UserIdが空のため確定通知を送信できません（予約ID ${id}）`);
     }
+
+    sendEmail_(confirmed['メールアドレス'], '【oO SPACE】ご予約が確定しました', buildConfirmedEmailBody_(confirmed));
 
     return { success: true };
   } catch (err) {
@@ -210,6 +213,43 @@ function buildCancelledMessage_(reservation, wasConfirmed) {
     `人数: ${reservation['人数'] || ''}名`,
     `スペース: ${reservation['スペース'] || ''}`,
     `氏名: ${reservation['氏名（カタカナ）'] || ''}`
+  ].join('\n');
+}
+
+// メールアドレスが指定されている場合のみ送信する。失敗しても呼び出し元の処理は継続させる
+function sendEmail_(to, subject, body) {
+  if (!to) return;
+  try {
+    MailApp.sendEmail(to, subject, body);
+  } catch (err) {
+    console.error(`sendEmail_: メール送信に失敗しました（宛先 ${to}）`, err);
+  }
+}
+
+function buildProvisionalEmailBody_(data) {
+  return [
+    'この度はご予約のお申し込みをいただき、誠にありがとうございます。',
+    '内容を確認のうえ、担当者よりLINEにてご連絡いたします。',
+    '',
+    `日時: ${data.datetime ? formatDateTimeForDisplay_(data.datetime) : '未入力'}`,
+    `人数: ${data.headcount ? data.headcount + '名' : '未入力'}`,
+    `スペース: ${data.space || '未入力'}`,
+    `飲み放題: ${data.drink || '未入力'}`,
+    '',
+    'ご不明な点がございましたら店舗までお問い合わせください。'
+  ].join('\n');
+}
+
+function buildConfirmedEmailBody_(reservation) {
+  return [
+    'ご予約が確定いたしました。',
+    '',
+    `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
+    `人数: ${reservation['人数'] || ''}名`,
+    `スペース: ${reservation['スペース'] || ''}`,
+    `飲み放題: ${reservation['飲み放題'] || ''}`,
+    '',
+    '当日のご来店を心よりお待ちしております。'
   ].join('\n');
 }
 

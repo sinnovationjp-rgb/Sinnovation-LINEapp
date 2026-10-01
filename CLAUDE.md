@@ -83,11 +83,11 @@ TASKS.mdのPhase順に、1フェーズずつ実装→動作確認→次フェー
 - GAS（Space予約管理プロジェクト）のスクリプトプロパティに`LINE_CHANNEL_ID`・`LINE_CHANNEL_SECRET`（社長から取得、`@186lmmed`のMessaging APIチャネルのもの）を登録済み、ステートレストークン取得は`debugLineConnection`で動作確認済み（✅成功）
 - 古い`LINE_CHANNEL_ACCESS_TOKEN`（siturt0330時代の値）はスクリプトプロパティから削除済み
 
-**残っている作業（最優先: プロバイダー問題の解消）**
-1. **社長に依頼**: `@186lmmed`のMessaging APIチャネルと同じプロバイダー内に、新しくLINE Loginチャネル＋LIFFアプリを作成してもらう（社長自身の開発者アカウントで。手順は以前「oO SPACE予約」を作ったときと同様）。もしくは、そのプロバイダーに齋藤さんを管理者として追加してもらい、齋藤さん自身で作成する
-2. 新しいLIFF IDが発行されたら、`frontend/js/liff-init.js`の`LIFF_ID`を更新してデプロイ
-3. manager.line.biz（`@186lmmed`側）のリッチメニューのリンク先を、新しいLIFF IDの`https://liff.line.me/{新LIFF_ID}`に差し替える
-4. 改めてテスト予約→承認し、LINE通知が届くか確認（`debugLineFriendStatus`で事前に✅が出ることを確認してから本番テストするとよい）
+**プロバイダー問題への対応状況（2026-10-01、進行中）**
+1. ✅ 完了: `@186lmmed`のMessaging APIチャネルと同一プロバイダー内に新しいLINE Loginチャネル＋LIFFアプリを作成（LIFF ID: `2011811803-LPCWIDmb`）
+2. ✅ 完了: `frontend/js/liff-init.js`の`LIFF_ID`を更新してmainにマージ済み（フロントはGitHub Pages直結のためclasp deploy不要、push後すぐ反映）
+3. ✅ 完了: manager.line.biz（`@186lmmed`側）のリッチメニューのリンク先を新LIFF IDに差し替え済み
+4. **未確認（次にやること）**: 新LIFF経由で改めてテスト予約→承認し、LINE通知が実際に届くか確認。事前に`debugLineFriendStatus`（`DEBUG_TEST_USER_ID`を新しい予約のLINE UserId列の値に更新してから実行）で✅が出るか確認するとよい。旧LIFF（`2011761592-fPsPphNA`、別プロバイダー）はもう使われない想定だが、もし過去の仮予約データにそのLIFF由来のLINE UserIdが残っている行があれば、そのuserIdは引き続き新チャネルに対しては無効（友だち判定404）になる点に注意
 5. `fixPhoneNumberLeadingZeros`（GAS）の実行、`sendReminders`用トリガー（`createDailyTrigger`）がこのプロジェクトに登録されているかの確認（いずれもデプロイ不要、齋藤さん側で完結可能、未確認のまま）
 
 **デバッグ用に追加した関数（LineService.js、本番コードには影響しない診断専用）**

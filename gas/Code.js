@@ -37,6 +37,9 @@ function doPost(e) {
 
 function approveReservation(id, editedData) {
   try {
+    if (!id) {
+      throw new Error('予約IDが指定されていません（承認画面の読み込みに失敗している可能性があります。リンクを開き直してください）');
+    }
     const reservation = SheetService.getReservationById(id);
     if (!reservation) {
       throw new Error(`予約ID ${id} が見つかりません`);
@@ -135,6 +138,9 @@ function cancelReservation(id) {
   try {
     if (!isAuthorizedAdmin_()) {
       throw new Error('アクセス権がありません');
+    }
+    if (!id) {
+      throw new Error('予約IDが指定されていません（画面を再読み込みしてもう一度お試しください）');
     }
     const reservation = SheetService.getReservationById(id);
     if (!reservation) {

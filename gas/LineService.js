@@ -119,12 +119,67 @@ var LineService = (function () {
     console.log('送信を試みました。上に❌のエラーが出ていなければ、LINEアプリに届いているはずです。');
   }
 
+  // 今のLINE_CHANNEL_ID/SECRET（またはACCESS_TOKEN）が実際にどの公式アカウントを制御しているか確認する。
+  // 「友だちになっているはずなのに届かない」場合、スクリプトプロパティの認証情報が
+  // 想定と別の公式アカウント（チャネル）のものになっている可能性を切り分けるために使う
+  function debugBotInfo() {
+    const token = getAccessToken_();
+    if (!token) {
+      console.error('debugBotInfo: アクセストークンを取得できませんでした');
+      return;
+    }
+    try {
+      const response = UrlFetchApp.fetch('https://api.line.me/v2/bot/info', {
+        method: 'get',
+        headers: { Authorization: `Bearer ${token}` },
+        muteHttpExceptions: true
+      });
+      const code = response.getResponseCode();
+      console.log(`debugBotInfo: status=${code}`);
+      console.log(response.getContentText());
+      console.log('↑ displayName・basicIdが「oO SPACE Niigata」「@186lmmed」になっているか確認してください。違う場合はチャネルID/SECRETの設定ミスです。');
+    } catch (err) {
+      console.error('debugBotInfo failed', err);
+    }
+  }
+
+  // 指定したuserIdが、今のチャネルからみて「友だち」かどうかを直接LINEに確認する
+  function debugFriendStatus(userId) {
+    const token = getAccessToken_();
+    if (!token) {
+      console.error('debugFriendStatus: アクセストークンを取得できませんでした');
+      return;
+    }
+    if (!userId) {
+      console.error('debugFriendStatus: userIdが指定されていません');
+      return;
+    }
+    try {
+      const response = UrlFetchApp.fetch(`https://api.line.me/v2/bot/profile/${userId}`, {
+        method: 'get',
+        headers: { Authorization: `Bearer ${token}` },
+        muteHttpExceptions: true
+      });
+      const code = response.getResponseCode();
+      if (code === 200) {
+        console.log(`✅ 友だちとして認識されています: ${response.getContentText()}`);
+      } else {
+        console.log(`❌ 友だちとして認識できません (status=${code}): ${response.getContentText()}`);
+        console.log('→ このチャネル（debugBotInfoで表示される公式アカウント）に対しては、このuserIdのユーザーは友だち登録されていないことを意味します。');
+      }
+    } catch (err) {
+      console.error('debugFriendStatus failed', err);
+    }
+  }
+
   return {
     pushMessage: pushMessage,
     pushConfirmation: pushConfirmation,
     pushCancellation: pushCancellation,
     debugConnection: debugConnection,
-    debugTestPush: debugTestPush
+    debugTestPush: debugTestPush,
+    debugBotInfo: debugBotInfo,
+    debugFriendStatus: debugFriendStatus
   };
 })();
 
@@ -148,4 +203,19 @@ function debugLineTestPushFromProperty() {
     return;
   }
   LineService.debugTestPush(userId);
+}
+
+// 今のチャネルID/SECRETが実際にどの公式アカウント（LINEのdisplayName・basicId）を制御しているか確認する
+function debugLineBotInfo() {
+  LineService.debugBotInfo();
+}
+
+// DEBUG_TEST_USER_IDに設定したuserIdが、今のチャネルから見て友だちかどうかを直接確認する
+function debugLineFriendStatus() {
+  const userId = PropertiesService.getScriptProperties().getProperty('DEBUG_TEST_USER_ID');
+  if (!userId) {
+    console.error('debugLineFriendStatus: スクリプトプロパティ DEBUG_TEST_USER_ID が未設定です');
+    return;
+  }
+  LineService.debugFriendStatus(userId);
 }

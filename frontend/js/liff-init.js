@@ -1,5 +1,5 @@
-// LIFF初期化。本番用LIFF ID（oO SPACE Niigata公式アカウント連携）
-const LIFF_ID = '2011761592-fPsPphNA';
+// LIFF初期化。本番用LIFF ID（@186lmmedのMessaging APIチャネルと同一プロバイダー内に作り直したもの）
+const LIFF_ID = '2011811803-LPCWIDmb';
 
 // GAS_ENDPOINT_URLはjs/config.js（このスクリプトより先に読み込む）で定義
 

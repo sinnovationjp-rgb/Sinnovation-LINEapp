@@ -2,45 +2,159 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>予約承認</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; max-width: 480px; margin: 24px auto; padding: 0 16px; }
-    label { display: block; margin-bottom: 12px; font-size: 0.9rem; }
-    input, textarea { display: block; width: 100%; margin-top: 4px; padding: 8px; box-sizing: border-box; }
-    button { padding: 12px 24px; margin-top: 16px; }
-    #result { margin-top: 16px; font-weight: bold; color: #b00; }
-    #done-screen { display: none; text-align: center; padding: 60px 0; }
-    #done-screen .icon {
-      width: 56px; height: 56px; border-radius: 50%; background: #e7f8ee; color: #06c755;
-      display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 1.6rem;
+    :root {
+      --bg: #f4f1ea;
+      --surface: #ffffff;
+      --border: #e3ddd0;
+      --text: #211d17;
+      --text-muted: #857b68;
+      --accent: #b6763a;
+      --accent-strong: #96602c;
+      --accent-soft: #f4e6d3;
+      --ok: #2f7a52;
+      --ok-soft: #e2f1e8;
+      --danger: #a8433a;
+      --danger-soft: #f5e4e2;
+      --shadow: 0 1px 2px rgba(33,29,23,0.06), 0 8px 24px -12px rgba(33,29,23,0.18);
     }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+    }
+    main { max-width: 440px; margin: 0 auto; padding: 22px 18px 48px; }
+
+    .brand { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 16px; }
+    .brand .mark { font-family: "Zen Kaku Gothic New", sans-serif; font-weight: 900; font-size: 15px; color: var(--accent); letter-spacing: 0.02em; }
+    .brand .sub { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+      background: var(--accent-soft); color: var(--accent-strong); font-size: 12px; font-weight: 700; margin-bottom: 16px;
+    }
+    .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    .not-found {
+      background: var(--danger-soft); color: var(--danger); border-radius: 14px; padding: 18px;
+      font-size: 14px; font-weight: 600; text-align: center;
+    }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+    .card-head { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+    .card-head input {
+      display: block; width: 100%; border: none; background: none; padding: 0; font: inherit;
+      color: var(--text); outline: none;
+    }
+    .card-head .name-input { font-family: "Zen Kaku Gothic New", sans-serif; font-size: 19px; font-weight: 700; }
+    .card-head .phone-input { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    .card-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 16px; }
+    .field-row { display: flex; gap: 12px; }
+    .field { flex: 1; }
+    .field-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin: 0 0 6px; }
+    .field-input {
+      width: 100%; font: inherit; font-size: 14px; color: var(--text);
+      padding: 11px 13px; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface); outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(182,118,58,0.16); }
+    textarea.field-input { resize: vertical; font-family: inherit; min-height: 60px; }
+
+    .submit-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 16px;
+      padding: 15px; border: none; border-radius: 14px; background: var(--accent); color: #fff;
+      font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow);
+    }
+    .submit-btn:disabled { opacity: 0.6; cursor: default; }
+    .hint { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 10px; }
+    #result { margin-top: 10px; font-weight: 700; font-size: 13px; color: var(--danger); text-align: center; }
+
+    #done-screen {
+      display: none; min-height: 60vh; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; text-align: center; padding-top: 40px;
+    }
+    #done-screen .icon {
+      width: 68px; height: 68px; border-radius: 50%; background: var(--ok-soft); color: var(--ok);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #done-screen h1 { font-family: "Zen Kaku Gothic New", sans-serif; font-size: 20px; font-weight: 700; margin: 0; }
+    #done-screen p { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin: 0; max-width: 280px; }
   </style>
 </head>
 <body>
-  <div id="form-screen">
-    <h1>予約承認</h1>
-    <p id="not-found" style="display:none; color:#b00;">予約が見つかりませんでした。</p>
+  <main>
+    <div class="brand"><span class="mark">oO SPACE</span><span class="sub">予約承認</span></div>
 
-    <form id="approval-form">
-      <label>日時 <input type="text" name="予約日時"></label>
-      <label>人数 <input type="text" name="人数"></label>
-      <label>スペース <input type="text" name="スペース"></label>
-      <label>飲み放題 <input type="text" name="飲み放題"></label>
-      <label>ご利用履歴 <input type="text" name="ご利用履歴"></label>
-      <label>氏名（カタカナ） <input type="text" name="氏名（カタカナ）"></label>
-      <label>電話番号 <input type="text" name="電話番号"></label>
-      <label>メールアドレス <input type="text" name="メールアドレス"></label>
-      <label>備考 <textarea name="備考"></textarea></label>
-      <button type="submit">承認して確定</button>
-    </form>
-    <p id="result"></p>
-  </div>
+    <div id="form-screen">
+      <p id="not-found" class="not-found" style="display:none;">予約が見つかりませんでした。</p>
 
-  <div id="done-screen">
-    <div class="icon">✓</div>
-    <h1>確定しました</h1>
-    <p>予約の確定処理が完了しました。この画面は閉じて構いません。</p>
-  </div>
+      <div id="form-content">
+        <span class="pill">仮予約・承認待ち</span>
+
+        <form id="approval-form">
+          <div class="card">
+            <div class="card-head">
+              <input class="name-input" type="text" name="氏名（カタカナ）" aria-label="氏名（カタカナ）">
+              <input class="phone-input" type="text" name="電話番号" aria-label="電話番号">
+            </div>
+            <div class="card-body">
+              <div class="field">
+                <label class="field-label">予約日時</label>
+                <input class="field-input" type="text" name="予約日時">
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label class="field-label">人数</label>
+                  <input class="field-input" type="text" name="人数">
+                </div>
+                <div class="field">
+                  <label class="field-label">飲み放題</label>
+                  <input class="field-input" type="text" name="飲み放題">
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label">スペース</label>
+                <input class="field-input" type="text" name="スペース">
+              </div>
+              <div class="field">
+                <label class="field-label">ご利用履歴</label>
+                <input class="field-input" type="text" name="ご利用履歴">
+              </div>
+              <div class="field">
+                <label class="field-label">メールアドレス</label>
+                <input class="field-input" type="text" name="メールアドレス">
+              </div>
+              <div class="field">
+                <label class="field-label">備考</label>
+                <textarea class="field-input" name="備考" rows="2"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn">承認して確定</button>
+          <div class="hint">内容をご確認のうえ、承認してください</div>
+          <p id="result"></p>
+        </form>
+      </div>
+    </div>
+
+    <div id="done-screen">
+      <div class="icon">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </div>
+      <h1>確定しました</h1>
+      <p>予約の確定処理が完了しました。この画面は閉じて構いません。</p>
+    </div>
+  </main>
 
   <script>
     const reservationId = <?!= toSafeJson_(reservationId) ?>;
@@ -49,7 +163,7 @@
 
     if (!reservation) {
       document.getElementById('not-found').style.display = 'block';
-      form.style.display = 'none';
+      document.getElementById('form-content').style.display = 'none';
     } else {
       Object.keys(reservation).forEach((key) => {
         const field = form.elements[key];
@@ -65,20 +179,23 @@
       const submitBtn = form.querySelector('button[type="submit"]');
       resultEl.textContent = '処理中...';
       submitBtn.disabled = true;
+      submitBtn.textContent = '処理中…';
 
       google.script.run
         .withSuccessHandler((res) => {
           if (res.success) {
             document.getElementById('form-screen').style.display = 'none';
-            document.getElementById('done-screen').style.display = 'block';
+            document.getElementById('done-screen').style.display = 'flex';
           } else {
             resultEl.textContent = `エラー: ${res.error}`;
             submitBtn.disabled = false;
+            submitBtn.textContent = '承認して確定';
           }
         })
         .withFailureHandler((err) => {
           resultEl.textContent = `エラー: ${err.message}`;
           submitBtn.disabled = false;
+          submitBtn.textContent = '承認して確定';
         })
         .approveReservation(reservationId, editedData);
     });

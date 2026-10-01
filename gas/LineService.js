@@ -64,6 +64,20 @@ var LineService = (function () {
     }
   }
 
+  function pushProvisional(userId, data) {
+    const text = [
+      'ご予約を受け付けました（仮予約）',
+      '',
+      `日時: ${data.datetime ? formatDateTimeForDisplay_(data.datetime) : '未入力'}`,
+      `人数: ${data.headcount ? data.headcount + '名' : '未入力'}`,
+      `スペース: ${data.space || '未入力'}`,
+      `飲み放題: ${data.drink || '未入力'}`,
+      '',
+      '内容を確認のうえ、担当者よりLINEにてご連絡いたします。'
+    ].join('\n');
+    pushMessage(userId, text);
+  }
+
   function pushConfirmation(userId, reservation) {
     const text = [
       'ご予約が確定しました',
@@ -174,6 +188,7 @@ var LineService = (function () {
 
   return {
     pushMessage: pushMessage,
+    pushProvisional: pushProvisional,
     pushConfirmation: pushConfirmation,
     pushCancellation: pushCancellation,
     debugConnection: debugConnection,

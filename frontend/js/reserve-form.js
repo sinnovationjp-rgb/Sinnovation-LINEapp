@@ -48,6 +48,17 @@ document.querySelectorAll('[data-prev]').forEach((btn) => {
   btn.addEventListener('click', () => showStep(Number(btn.dataset.prev)));
 });
 
+// 氏名・備考等は利用者本人の入力値だが、innerHTMLへそのまま埋め込むと
+// <img src=x onerror=...> のようなタグが実行されてしまうため、表示前に必ずエスケープする
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildSummary() {
   const lastname = document.getElementById('lastname-input').value;
   const firstname = document.getElementById('firstname-input').value;
@@ -69,7 +80,7 @@ function buildSummary() {
   ];
 
   document.getElementById('summary').innerHTML = rows.map(([label, value]) => `
-    <div class="summary-row"><dt>${label}</dt><dd>${value}</dd></div>
+    <div class="summary-row"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>
   `).join('');
 }
 

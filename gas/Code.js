@@ -260,6 +260,8 @@ function buildConfirmedEmailBody_(reservation) {
     `スペース: ${reservation['スペース'] || ''}`,
     `飲み放題: ${reservation['飲み放題'] || ''}`,
     '',
+    'キャンセルをご希望の場合は、LINE公式アカウントのメッセージにてお知らせください。',
+    '',
     '当日のご来店を心よりお待ちしております。'
   ].join('\n');
 }

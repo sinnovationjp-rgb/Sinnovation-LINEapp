@@ -85,7 +85,9 @@ var LineService = (function () {
       `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
       `人数: ${reservation['人数'] || ''}名`,
       `スペース: ${reservation['スペース'] || ''}`,
-      `飲み放題: ${reservation['飲み放題'] || ''}`
+      `飲み放題: ${reservation['飲み放題'] || ''}`,
+      '',
+      'キャンセルをご希望の場合は、このLINEにメッセージでお知らせください。'
     ].join('\n');
     pushMessage(userId, text);
   }

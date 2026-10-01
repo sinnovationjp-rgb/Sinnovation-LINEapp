@@ -66,7 +66,7 @@ var LineService = (function () {
 
   function pushProvisional(userId, data) {
     const text = [
-      'ご予約を受け付けました',
+      '仮予約を承りました。現時点で予約は確定しておりません。',
       '',
       `日時: ${data.datetime ? formatDateTimeForDisplay_(data.datetime) : '未入力'}`,
       `人数: ${data.headcount ? data.headcount + '名' : '未入力'}`,

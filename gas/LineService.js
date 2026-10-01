@@ -89,9 +89,52 @@ var LineService = (function () {
     pushMessage(userId, text);
   }
 
+  // 通知が届かないときの切り分け用。スクリプトプロパティの設定状況とトークン取得の成否をログに出す
+  function debugConnection() {
+    const props = PropertiesService.getScriptProperties();
+    const staticToken = props.getProperty('LINE_CHANNEL_ACCESS_TOKEN');
+    const channelId = props.getProperty('LINE_CHANNEL_ID');
+    const channelSecret = props.getProperty('LINE_CHANNEL_SECRET');
+
+    console.log(`LINE_CHANNEL_ACCESS_TOKEN: ${staticToken ? '設定あり（長期トークンを使用）' : '未設定'}`);
+    console.log(`LINE_CHANNEL_ID: ${channelId ? `設定あり（${channelId}）` : '未設定'}`);
+    console.log(`LINE_CHANNEL_SECRET: ${channelSecret ? '設定あり' : '未設定'}`);
+
+    const token = getAccessToken_();
+    if (token) {
+      console.log('✅ アクセストークンの取得に成功しました。LINE_CHANNEL_ID/SECRET（またはACCESS_TOKEN）の設定は正しいです。');
+    } else {
+      console.log('❌ アクセストークンの取得に失敗しました。直前のエラーログ（LineService.getAccessToken_: トークン取得に失敗しました...）の内容を確認してください。');
+    }
+    return !!token;
+  }
+
+  // 実際に指定したuserIdへテスト通知を送る。GASエディタで debugTestPush('Uxxxx...') の形で手動実行する
+  function debugTestPush(userId) {
+    if (!userId) {
+      console.error('debugTestPush: userIdを引数で指定してください（スプレッドシートのLINE UserId列の値をコピーして渡す）');
+      return;
+    }
+    pushMessage(userId, 'oO SPACE: これはテスト通知です。届いていれば送信設定は正常です。');
+    console.log('送信を試みました。上に❌のエラーが出ていなければ、LINEアプリに届いているはずです。');
+  }
+
   return {
     pushMessage: pushMessage,
     pushConfirmation: pushConfirmation,
-    pushCancellation: pushCancellation
+    pushCancellation: pushCancellation,
+    debugConnection: debugConnection,
+    debugTestPush: debugTestPush
   };
 })();
+
+// GASエディタの関数選択プルダウンから直接実行できる診断用関数
+// 1. debugLineConnection() → アクセストークンが取得できるか確認（チャネルID/SECRETの設定ミスを検出）
+// 2. debugLineTestPush('Uxxxxxxxx...') → スプレッドシートのLINE UserId列の値を渡して実際にテスト通知を送る
+function debugLineConnection() {
+  return LineService.debugConnection();
+}
+
+function debugLineTestPush(userId) {
+  LineService.debugTestPush(userId);
+}

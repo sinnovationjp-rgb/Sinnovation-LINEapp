@@ -28,6 +28,11 @@ function doPost(e) {
     const approvalUrl = ScriptApp.getService().getUrl() + '?page=approval&id=' + id;
     NotifyService.send(buildProvisionalMessage_(id, data, approvalUrl));
     sendEmail_(data.email, '【oO SPACE】ご予約を受け付けました', buildProvisionalEmailBody_(data));
+    if (data.userId) {
+      LineService.pushProvisional(data.userId, data);
+    } else {
+      console.warn(`doPost: LINE UserIdが空のため仮予約受付通知を送信できません（予約ID ${id}）`);
+    }
     return jsonResponse_({ success: true, id: id });
   } catch (err) {
     console.error('doPost: 仮予約処理に失敗しました', err);

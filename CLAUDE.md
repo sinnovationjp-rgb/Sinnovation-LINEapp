@@ -61,8 +61,9 @@ TASKS.mdのPhase順に、1フェーズずつ実装→動作確認→次フェー
 
 ## 進行中の作業メモ（引き継ぎ用）
 
-### 本番の公式LINEアカウントへの切り替え作業（2026-09-27時点、未完了）
-これまで開発に使っていたテスト用LIFF（`LIFF_ID = '2011404271-2LcJbLkK'`、`frontend/js/liff-init.js`）を、実際に運用する公式アカウント「oO SPACE Niigata」（ベーシックID `@186lmmed`）に切り替える作業を進行中。
+### 本番の公式LINEアカウントへの切り替え作業（2026-10-01 完了）
+これまで開発に使っていたテスト用LIFF（`LIFF_ID = '2011404271-2LcJbLkK'`）を、実際に運用する公式アカウント「oO SPACE Niigata」（ベーシックID `@186lmmed`）に切り替える作業。**LINE確定通知の実機受信を確認し、完了。**
+現在の本番LIFF ID: `2011811803-LPCWIDmb`（`frontend/js/liff-init.js`）。`@186lmmed`のMessaging APIチャネルと同一プロバイダー内に作成したLINE Loginチャネルのもの。
 
 **ここまで完了したこと**
 - LINE Official Account Manager（manager.line.biz）で `@186lmmed` のMessaging APIを有効化し、チャネルID・チャネルシークレットを取得済み
@@ -83,12 +84,15 @@ TASKS.mdのPhase順に、1フェーズずつ実装→動作確認→次フェー
 - GAS（Space予約管理プロジェクト）のスクリプトプロパティに`LINE_CHANNEL_ID`・`LINE_CHANNEL_SECRET`（社長から取得、`@186lmmed`のMessaging APIチャネルのもの）を登録済み、ステートレストークン取得は`debugLineConnection`で動作確認済み（✅成功）
 - 古い`LINE_CHANNEL_ACCESS_TOKEN`（siturt0330時代の値）はスクリプトプロパティから削除済み
 
-**プロバイダー問題への対応状況（2026-10-01、進行中）**
-1. ✅ 完了: `@186lmmed`のMessaging APIチャネルと同一プロバイダー内に新しいLINE Loginチャネル＋LIFFアプリを作成（LIFF ID: `2011811803-LPCWIDmb`）
-2. ✅ 完了: `frontend/js/liff-init.js`の`LIFF_ID`を更新してmainにマージ済み（フロントはGitHub Pages直結のためclasp deploy不要、push後すぐ反映）
-3. ✅ 完了: manager.line.biz（`@186lmmed`側）のリッチメニューのリンク先を新LIFF IDに差し替え済み
-4. **未確認（次にやること）**: 新LIFF経由で改めてテスト予約→承認し、LINE通知が実際に届くか確認。事前に`debugLineFriendStatus`（`DEBUG_TEST_USER_ID`を新しい予約のLINE UserId列の値に更新してから実行）で✅が出るか確認するとよい。旧LIFF（`2011761592-fPsPphNA`、別プロバイダー）はもう使われない想定だが、もし過去の仮予約データにそのLIFF由来のLINE UserIdが残っている行があれば、そのuserIdは引き続き新チャネルに対しては無効（友だち判定404）になる点に注意
-5. `fixPhoneNumberLeadingZeros`（GAS）の実行、`sendReminders`用トリガー（`createDailyTrigger`）がこのプロジェクトに登録されているかの確認（いずれもデプロイ不要、齋藤さん側で完結可能、未確認のまま）
+**プロバイダー問題への対応（2026-10-01、解決済み）**
+1. ✅ `@186lmmed`のMessaging APIチャネルと同一プロバイダー内に新しいLINE Loginチャネル＋LIFFアプリを作成（LIFF ID: `2011811803-LPCWIDmb`）
+2. ✅ `frontend/js/liff-init.js`の`LIFF_ID`を更新してmainにマージ（フロントはGitHub Pages直結のためclasp deploy不要）
+3. ✅ manager.line.biz（`@186lmmed`側）のリッチメニューのリンク先を新LIFF IDに差し替え
+4. ✅ 新LIFF経由でテスト予約→承認し、LINEに「ご予約が確定しました」の通知が実機で届くことを確認（2026-10-01）
+5. 旧LIFF（`2011761592-fPsPphNA`、別プロバイダー）由来のLINE UserIdが残っている過去の仮予約データがあれば、そのuserIdは新チャネルに対して引き続き無効（友だち判定404）なので、再承認が必要な場合は新しく予約し直してもらう必要がある
+
+**残作業（軽微、いつでも可）**
+- `fixPhoneNumberLeadingZeros`（GAS）の実行、`sendReminders`用トリガー（`createDailyTrigger`）がこのプロジェクトに登録されているかの確認（いずれもデプロイ不要、齋藤さん側で完結可能、未確認のまま）
 
 **デバッグ用に追加した関数（LineService.js、本番コードには影響しない診断専用）**
 - `debugLineConnection()`: アクセストークン取得の成否を確認

@@ -138,3 +138,14 @@ function debugLineConnection() {
 function debugLineTestPush(userId) {
   LineService.debugTestPush(userId);
 }
+
+// GASエディタの「実行」ボタンは関数に引数を渡せないため、スクリプトプロパティ経由で渡す。
+// 事前にスクリプトプロパティ DEBUG_TEST_USER_ID に、スプレッドシートの「LINE UserId」列の値を設定してから実行する
+function debugLineTestPushFromProperty() {
+  const userId = PropertiesService.getScriptProperties().getProperty('DEBUG_TEST_USER_ID');
+  if (!userId) {
+    console.error('debugLineTestPushFromProperty: スクリプトプロパティ DEBUG_TEST_USER_ID が未設定です（プロジェクトの設定 > スクリプトプロパティ で、スプレッドシートのLINE UserId列の値を設定してください）');
+    return;
+  }
+  LineService.debugTestPush(userId);
+}

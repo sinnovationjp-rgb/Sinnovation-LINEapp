@@ -9,6 +9,23 @@ function doGet(e) {
   return jsonResponse_(availability);
 }
 
+// 予約データの読み取り→判定→書き込みが複数リクエストで同時に走ると、スプレッドシートの
+// 二重書き込みや、確定/キャンセル二重実行防止チェックがすり抜ける恐れがあるため、
+// 予約を変更する処理はスクリプト全体で排他制御する
+function withReservationLock_(fn) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000); // 最大10秒待つ
+  } catch (err) {
+    throw new Error('只今他の予約処理が混み合っています。少し時間をおいて再度お試しください。');
+  }
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function doPost(e) {
   let data;
   try {
@@ -24,12 +41,15 @@ function doPost(e) {
   }
 
   try {
-    const id = SheetService.addProvisionalReservation(data);
+    const id = withReservationLock_(() => SheetService.addProvisionalReservation(data));
     const approvalUrl = ScriptApp.getService().getUrl() + '?page=approval&id=' + id;
     NotifyService.send(buildProvisionalMessage_(id, data, approvalUrl));
     sendEmail_(data.email, '【oO SPACE】ご予約を受け付けました', buildProvisionalEmailBody_(data));
     if (data.userId) {
-      LineService.pushProvisional(data.userId, data);
+      const lineOk = LineService.pushProvisional(data.userId, data);
+      if (!lineOk) {
+        NotifyService.send(`⚠️ LINE仮予約受付通知の送信に失敗しました（予約ID ${id}）`);
+      }
     } else {
       console.warn(`doPost: LINE UserIdが空のため仮予約受付通知を送信できません（予約ID ${id}）`);
     }
@@ -45,60 +65,74 @@ function approveReservation(id, editedData) {
     if (!id) {
       throw new Error('予約IDが指定されていません（承認画面の読み込みに失敗している可能性があります。リンクを開き直してください）');
     }
-    const reservation = SheetService.getReservationById(id);
-    if (!reservation) {
-      throw new Error(`予約ID ${id} が見つかりません`);
-    }
-    if (reservation['ステータス'] === '確定') {
-      // 承認リンクの二重送信・連打・画面の再読み込みなどで同じ予約が再度承認された場合、
-      // カレンダーの二重登録やLINE/メール/Discordの二重通知を防ぐため、何もせず成功を返す
-      console.warn(`approveReservation: 予約ID ${id} は既に確定済みのため、処理をスキップします`);
+
+    const lockResult = withReservationLock_(() => {
+      const reservation = SheetService.getReservationById(id);
+      if (!reservation) {
+        throw new Error(`予約ID ${id} が見つかりません`);
+      }
+      if (reservation['ステータス'] === '確定') {
+        // 承認リンクの二重送信・連打・画面の再読み込みなどで同じ予約が再度承認された場合、
+        // カレンダーの二重登録やLINE/メール/Discordの二重通知を防ぐため、何もせず成功を返す
+        console.warn(`approveReservation: 予約ID ${id} は既に確定済みのため、処理をスキップします`);
+        return { alreadyProcessed: true };
+      }
+
+      // editedDataは承認画面のフォームから届く値。LINE UserIdなどフォームにない項目まで
+      // 上書きされないよう、フォームが実際に持つ項目だけを許可リストとして反映する
+      const EDITABLE_FIELDS = ['予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名（カタカナ）', '電話番号', 'メールアドレス', '備考'];
+      const safeEdits = {};
+      EDITABLE_FIELDS.forEach((key) => {
+        if (editedData && Object.prototype.hasOwnProperty.call(editedData, key)) {
+          safeEdits[key] = editedData[key];
+        }
+      });
+      const confirmed = Object.assign({}, reservation, safeEdits);
+
+      SheetService.updateReservation(id, {
+        'ステータス': '確定',
+        '予約日時': confirmed['予約日時'],
+        '人数': confirmed['人数'],
+        'スペース': confirmed['スペース'],
+        '飲み放題': confirmed['飲み放題'],
+        'ご利用履歴': confirmed['ご利用履歴'],
+        '氏名（カタカナ）': confirmed['氏名（カタカナ）'],
+        '電話番号': confirmed['電話番号'],
+        'メールアドレス': confirmed['メールアドレス'],
+        '備考': confirmed['備考']
+      });
+
+      try {
+        const event = CalendarService.createEvent({
+          datetime: confirmed['予約日時'],
+          headcount: confirmed['人数'],
+          space: confirmed['スペース'],
+          drink: confirmed['飲み放題'],
+          name: confirmed['氏名（カタカナ）'],
+          note: confirmed['備考']
+        });
+        SheetService.updateReservation(id, { 'カレンダーイベントID': event.getId() });
+      } catch (calendarErr) {
+        console.error(`approveReservation: カレンダー登録に失敗しました（予約ID ${id}）。スプレッドシートの確定・通知は続行します`, calendarErr);
+        NotifyService.send(`⚠️ カレンダー登録に失敗しました（予約ID ${id}）。手動でカレンダーに追加してください。\nエラー: ${calendarErr}`);
+      }
+
+      return { confirmed: confirmed };
+    });
+
+    if (lockResult.alreadyProcessed) {
       return { success: true };
     }
-
-    // editedDataは承認画面のフォームから届く値。LINE UserIdなどフォームにない項目まで
-    // 上書きされないよう、フォームが実際に持つ項目だけを許可リストとして反映する
-    const EDITABLE_FIELDS = ['予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名（カタカナ）', '電話番号', 'メールアドレス', '備考'];
-    const safeEdits = {};
-    EDITABLE_FIELDS.forEach((key) => {
-      if (editedData && Object.prototype.hasOwnProperty.call(editedData, key)) {
-        safeEdits[key] = editedData[key];
-      }
-    });
-    const confirmed = Object.assign({}, reservation, safeEdits);
-
-    SheetService.updateReservation(id, {
-      'ステータス': '確定',
-      '予約日時': confirmed['予約日時'],
-      '人数': confirmed['人数'],
-      'スペース': confirmed['スペース'],
-      '飲み放題': confirmed['飲み放題'],
-      'ご利用履歴': confirmed['ご利用履歴'],
-      '氏名（カタカナ）': confirmed['氏名（カタカナ）'],
-      '電話番号': confirmed['電話番号'],
-      'メールアドレス': confirmed['メールアドレス'],
-      '備考': confirmed['備考']
-    });
-
-    try {
-      const event = CalendarService.createEvent({
-        datetime: confirmed['予約日時'],
-        headcount: confirmed['人数'],
-        space: confirmed['スペース'],
-        drink: confirmed['飲み放題'],
-        name: confirmed['氏名（カタカナ）'],
-        note: confirmed['備考']
-      });
-      SheetService.updateReservation(id, { 'カレンダーイベントID': event.getId() });
-    } catch (calendarErr) {
-      console.error(`approveReservation: カレンダー登録に失敗しました（予約ID ${id}）。スプレッドシートの確定・通知は続行します`, calendarErr);
-    }
+    const confirmed = lockResult.confirmed;
 
     NotifyService.send(buildConfirmedMessage_(confirmed));
 
     const userId = confirmed['LINE UserId'];
     if (userId) {
-      LineService.pushConfirmation(userId, confirmed);
+      const lineOk = LineService.pushConfirmation(userId, confirmed);
+      if (!lineOk) {
+        NotifyService.send(`⚠️ LINE確定通知の送信に失敗しました（予約ID ${id}）。お客様に電話等で確認をお願いします。`);
+      }
     } else {
       console.warn(`approveReservation: LINE UserIdが空のため確定通知を送信できません（予約ID ${id}）`);
     }
@@ -153,33 +187,48 @@ function cancelReservation(id) {
     if (!id) {
       throw new Error('予約IDが指定されていません（画面を再読み込みしてもう一度お試しください）');
     }
-    const reservation = SheetService.getReservationById(id);
-    if (!reservation) {
-      throw new Error(`予約ID ${id} が見つかりません`);
-    }
-    if (reservation['ステータス'] === 'キャンセル') {
-      // 既にキャンセル済みの予約への二重操作（パネルの連打・再読み込み等）で
-      // LINE/Discordへの二重通知が飛ぶのを防ぐため、何もせず成功を返す
-      console.warn(`cancelReservation: 予約ID ${id} は既にキャンセル済みのため、処理をスキップします`);
+
+    const lockResult = withReservationLock_(() => {
+      const reservation = SheetService.getReservationById(id);
+      if (!reservation) {
+        throw new Error(`予約ID ${id} が見つかりません`);
+      }
+      if (reservation['ステータス'] === 'キャンセル') {
+        // 既にキャンセル済みの予約への二重操作（パネルの連打・再読み込み等）で
+        // LINE/Discordへの二重通知が飛ぶのを防ぐため、何もせず成功を返す
+        console.warn(`cancelReservation: 予約ID ${id} は既にキャンセル済みのため、処理をスキップします`);
+        return { alreadyProcessed: true };
+      }
+      const wasConfirmed = reservation['ステータス'] === '確定';
+
+      SheetService.updateReservation(id, { 'ステータス': 'キャンセル' });
+
+      if (wasConfirmed && reservation['カレンダーイベントID']) {
+        try {
+          CalendarService.deleteEvent(reservation['カレンダーイベントID']);
+        } catch (calendarErr) {
+          console.error(`cancelReservation: カレンダーの予定削除に失敗しました（予約ID ${id}）`, calendarErr);
+          NotifyService.send(`⚠️ カレンダーの予定削除に失敗しました（予約ID ${id}）。手動で削除してください。\nエラー: ${calendarErr}`);
+        }
+      }
+
+      return { reservation: reservation, wasConfirmed: wasConfirmed };
+    });
+
+    if (lockResult.alreadyProcessed) {
       return { success: true };
     }
-    const wasConfirmed = reservation['ステータス'] === '確定';
-
-    SheetService.updateReservation(id, { 'ステータス': 'キャンセル' });
-
-    if (wasConfirmed && reservation['カレンダーイベントID']) {
-      try {
-        CalendarService.deleteEvent(reservation['カレンダーイベントID']);
-      } catch (calendarErr) {
-        console.error(`cancelReservation: カレンダーの予定削除に失敗しました（予約ID ${id}）`, calendarErr);
-      }
-    }
+    const reservation = lockResult.reservation;
+    const wasConfirmed = lockResult.wasConfirmed;
 
     NotifyService.send(buildCancelledMessage_(reservation, wasConfirmed));
 
     const userId = reservation['LINE UserId'];
     if (userId) {
-      LineService.pushCancellation(userId, reservation, wasConfirmed);
+      const lineOk = LineService.pushCancellation(userId, reservation, wasConfirmed);
+      if (!lineOk) {
+        NotifyService.send(`⚠️ LINEキャンセル通知の送信に失敗しました（予約ID ${id}）。お客様に電話等で確認をお願いします。`);
+      }
     } else {
       console.warn(`cancelReservation: LINE UserIdが空のためキャンセル通知を送信できません（予約ID ${id}）`);
     }
@@ -242,10 +291,31 @@ function buildCancelledMessage_(reservation, wasConfirmed) {
 // メールアドレスが指定されている場合のみ送信する。失敗しても呼び出し元の処理は継続させる
 function sendEmail_(to, subject, body) {
   if (!to) return;
+  checkEmailQuota_();
   try {
     MailApp.sendEmail({ to: to, subject: subject, body: body, name: 'oO SPACE' });
   } catch (err) {
     console.error(`sendEmail_: メール送信に失敗しました（宛先 ${to}）`, err);
+    NotifyService.send(`⚠️ メール送信に失敗しました（宛先: ${to}, 件名: ${subject}）\nエラー: ${err}`);
+  }
+}
+
+// メール送信の1日あたりの残りクォータが少なくなっていたら、1日1回だけDiscordへ警告する
+// （GASのMailAppには1日あたりの送信上限があり、超えると以降のメールが送れなくなるため）
+function checkEmailQuota_() {
+  try {
+    const remaining = MailApp.getRemainingDailyQuota();
+    const threshold = 20;
+    if (remaining >= threshold) return;
+
+    const props = PropertiesService.getScriptProperties();
+    const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
+    if (props.getProperty('EMAIL_QUOTA_ALERT_DATE') === today) return;
+
+    NotifyService.send(`⚠️ メール送信の残りクォータが少なくなっています（残り${remaining}件）。本日分のメールが送信できなくなる可能性があります。`);
+    props.setProperty('EMAIL_QUOTA_ALERT_DATE', today);
+  } catch (err) {
+    console.error('checkEmailQuota_ failed', err);
   }
 }
 

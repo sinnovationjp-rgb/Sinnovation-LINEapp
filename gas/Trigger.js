@@ -9,7 +9,10 @@ function sendReminders() {
       const message = buildReminderMessage_(reservation);
       const userId = reservation['LINE UserId'];
       if (userId) {
-        LineService.pushMessage(userId, message);
+        const lineOk = LineService.pushMessage(userId, message);
+        if (!lineOk) {
+          NotifyService.send(`⚠️ 前日リマインドのLINE送信に失敗しました（予約ID ${reservation['ID']}）`);
+        }
       }
 
       sendEmail_(

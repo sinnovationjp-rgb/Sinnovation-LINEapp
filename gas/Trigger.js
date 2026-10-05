@@ -53,3 +53,25 @@ function createDailyTrigger() {
     .atHour(9)
     .create();
 }
+
+// 古い確定済み/キャンセル済み予約データを「予約一覧_archive」シートへ退避し、
+// メインシートの行数肥大化によるパフォーマンス低下を防ぐ
+function archiveOldReservations() {
+  SheetService.archiveOldReservations();
+}
+
+// GASエディタで初回のみ手動実行してアーカイブ用の月次トリガーを登録する
+function createArchiveTrigger() {
+  const alreadyRegistered = ScriptApp.getProjectTriggers().some(
+    (trigger) => trigger.getHandlerFunction() === 'archiveOldReservations'
+  );
+  if (alreadyRegistered) {
+    console.warn('createArchiveTrigger: 既にトリガーが登録されています');
+    return;
+  }
+  ScriptApp.newTrigger('archiveOldReservations')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(4)
+    .create();
+}

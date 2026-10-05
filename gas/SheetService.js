@@ -209,6 +209,55 @@ var SheetService = (function () {
     }
   }
 
+  const ARCHIVE_SHEET_NAME = '予約一覧_archive';
+  const ARCHIVE_AFTER_DAYS = 180; // この日数より前の予約日時の確定済み/キャンセル済みデータをアーカイブへ退避する
+
+  // メインシートの行数が増え続けて処理が遅くなるのを防ぐため、十分古い確定済み/キャンセル済みの
+  // データを別シート（予約一覧_archive）へ移す。仮予約（対応待ち）は対象外。
+  // 戻り値はアーカイブした件数
+  function archiveOldReservations() {
+    try {
+      const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+      const ss = SpreadsheetApp.openById(spreadsheetId);
+      const sheet = getSheet_();
+      let archiveSheet = ss.getSheetByName(ARCHIVE_SHEET_NAME);
+      if (!archiveSheet) {
+        archiveSheet = ss.insertSheet(ARCHIVE_SHEET_NAME);
+        archiveSheet.appendRow(HEADERS);
+      }
+
+      const values = sheet.getDataRange().getValues();
+      const headers = values[0];
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - ARCHIVE_AFTER_DAYS);
+
+      const rowIndexesToDelete = []; // 1-indexed、シート上の行番号
+      for (let i = 1; i < values.length; i++) {
+        const obj = rowToObject_(headers, values[i]);
+        const status = obj['ステータス'];
+        if (status !== '確定' && status !== 'キャンセル') continue; // 仮予約（対応待ち）は残す
+
+        const raw = obj['予約日時'];
+        const dt = raw instanceof Date ? raw : new Date(raw);
+        if (isNaN(dt.getTime()) || dt >= cutoff) continue;
+
+        archiveSheet.appendRow(values[i]);
+        rowIndexesToDelete.push(i + 1);
+      }
+
+      // 行番号がずれないよう、後ろの行から順に削除する
+      rowIndexesToDelete
+        .sort((a, b) => b - a)
+        .forEach((rowIndex) => sheet.deleteRow(rowIndex));
+
+      console.log(`SheetService.archiveOldReservations: ${rowIndexesToDelete.length}件をアーカイブしました`);
+      return rowIndexesToDelete.length;
+    } catch (err) {
+      console.error('SheetService.archiveOldReservations failed', err);
+      throw err;
+    }
+  }
+
   return {
     addProvisionalReservation: addProvisionalReservation,
     getReservationById: getReservationById,
@@ -216,7 +265,8 @@ var SheetService = (function () {
     getConfirmedReservationsForDate: getConfirmedReservationsForDate,
     getAvailability: getAvailability,
     getAllReservations: getAllReservations,
-    fixPhoneNumberLeadingZeros: fixPhoneNumberLeadingZeros
+    fixPhoneNumberLeadingZeros: fixPhoneNumberLeadingZeros,
+    archiveOldReservations: archiveOldReservations
   };
 })();
 

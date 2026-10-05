@@ -192,6 +192,7 @@
         ユーザーを管理
       </button>
       <span class="pill pending" id="viewer-badge" style="display:none;">閲覧のみ</span>
+      <button class="admin-btn" id="logout-btn" style="display:none;">ログアウト</button>
       <div class="today tabular" id="today-label"></div>
     </div>
   </div>
@@ -277,7 +278,7 @@
       <button id="admin-add-btn">追加</button>
     </div>
     <p style="font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.6;">
-      ※ Gmailなど社外のアカウントを追加する場合、ここに登録するだけではアクセスできません。別途このGASプロジェクト自体をそのアカウントへ共有（閲覧者権限）する必要があります。sinnovation.jpのアカウントであれば不要です。
+      ※ sinnovation.jpのアカウントはGoogleにログインしていればそのまま開けます。Gmailなど社外のアカウントは、管理画面のURLを開くとログイン画面が表示されるので、登録したメールアドレスを入力し、届いたリンクから開いてください。
     </p>
     <div class="modal-error" id="admin-error"></div>
     <div>
@@ -295,6 +296,7 @@
   var reservations = <?!= toSafeJson_(reservations) ?>;
   // 'admin'（承認・却下・キャンセル・ユーザー管理が可能） または 'viewer'（閲覧のみ）
   var myRole = <?!= toSafeJson_(role) ?>;
+  var sessionToken = <?!= toSafeJson_(sessionToken) ?>;
 
   var TABS = [
     { key: 'all', label: 'すべて' },
@@ -488,7 +490,7 @@
     if (kind === 'approve') {
       google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).approveReservation(id, {});
     } else {
-      google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).cancelReservation(id);
+      google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).cancelReservation(id, sessionToken);
     }
   }
 
@@ -517,7 +519,7 @@
       renderAdminList(res.users);
     }).withFailureHandler(function (err) {
       document.getElementById('admin-error').textContent = err && err.message ? err.message : String(err);
-    }).getAllUsers();
+    }).getAllUsers(sessionToken);
 
     document.getElementById('admin-modal').classList.add('is-open');
     document.getElementById('admin-modal').setAttribute('aria-hidden', 'false');
@@ -560,7 +562,7 @@
         }).withFailureHandler(function (err) {
           document.getElementById('admin-error').textContent = err && err.message ? err.message : String(err);
           renderAdminList(users);
-        }).setUserRole(email, role);
+        }).setUserRole(email, role, sessionToken);
       });
     });
 
@@ -577,7 +579,7 @@
           renderAdminList(res.users);
         }).withFailureHandler(function (err) {
           document.getElementById('admin-error').textContent = err && err.message ? err.message : String(err);
-        }).removeUser(email);
+        }).removeUser(email, sessionToken);
       });
     });
   }
@@ -587,6 +589,22 @@
   } else {
     document.getElementById('manage-admins-btn').style.display = 'none';
     document.getElementById('viewer-badge').style.display = 'inline-flex';
+  }
+  if (sessionToken) {
+    var logoutBtn = document.getElementById('logout-btn');
+    logoutBtn.style.display = 'inline-flex';
+    logoutBtn.addEventListener('click', function () {
+      if (!confirm('ログアウトしますか？')) return;
+      logoutBtn.disabled = true;
+      google.script.run.withSuccessHandler(function () {
+        document.body.innerHTML = '<div style="font-family:sans-serif;text-align:center;padding:80px 20px;color:#211d17;">' +
+          '<h1 style="font-size:20px;">ログアウトしました</h1>' +
+          '<p style="color:#857b68;font-size:14px;">再度利用する場合は、管理画面のURLを開いてログインしてください。</p></div>';
+      }).withFailureHandler(function (err) {
+        logoutBtn.disabled = false;
+        alert('エラー: ' + (err && err.message ? err.message : err));
+      }).logoutAdminSession(sessionToken);
+    });
   }
   document.getElementById('admin-modal-close').addEventListener('click', closeAdminModal);
   document.getElementById('admin-modal-overlay').addEventListener('click', closeAdminModal);
@@ -605,7 +623,7 @@
       input.value = '';
     }).withFailureHandler(function (err) {
       document.getElementById('admin-error').textContent = err && err.message ? err.message : String(err);
-    }).addUser(email, role);
+    }).addUser(email, role, sessionToken);
   });
   document.getElementById('admin-email-input').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {

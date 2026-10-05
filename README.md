@@ -75,6 +75,7 @@ line-space-reservation/
 │   ├── LineService.js
 │   ├── ApprovalPage.html
 │   ├── AdminPage.html
+│   ├── AdminLoginPage.html
 │   └── Trigger.js
 ├── docs/
 │   └── spec.md

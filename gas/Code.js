@@ -165,6 +165,67 @@ function isAuthorizedAdmin_() {
   return allowList.indexOf(email) !== -1;
 }
 
+function getAdminEmailList_() {
+  return (PropertiesService.getScriptProperties().getProperty('ADMIN_EMAILS') || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+// 管理者画面から、現在登録されている管理者の一覧を取得する
+function getAdminEmails() {
+  if (!isAuthorizedAdmin_()) {
+    return { success: false, error: 'アクセス権がありません' };
+  }
+  return { success: true, emails: getAdminEmailList_() };
+}
+
+// 管理者画面から、新しい管理者のメールアドレスを追加する
+function addAdminEmail(email) {
+  try {
+    if (!isAuthorizedAdmin_()) {
+      throw new Error('アクセス権がありません');
+    }
+    const trimmed = String(email || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      throw new Error('正しいメールアドレスを入力してください');
+    }
+    const emails = getAdminEmailList_();
+    if (emails.some((e) => e.toLowerCase() === trimmed.toLowerCase())) {
+      throw new Error('既に登録されています');
+    }
+    emails.push(trimmed);
+    PropertiesService.getScriptProperties().setProperty('ADMIN_EMAILS', emails.join(','));
+    return { success: true, emails: emails };
+  } catch (err) {
+    console.error('addAdminEmail failed', err);
+    return { success: false, error: String(err.message || err) };
+  }
+}
+
+// 管理者画面から、管理者のメールアドレスを削除する（管理者が0人になる操作は拒否する）
+function removeAdminEmail(email) {
+  try {
+    if (!isAuthorizedAdmin_()) {
+      throw new Error('アクセス権がありません');
+    }
+    const target = String(email || '').trim().toLowerCase();
+    const emails = getAdminEmailList_();
+    const remaining = emails.filter((e) => e.toLowerCase() !== target);
+    if (remaining.length === emails.length) {
+      throw new Error('指定されたメールアドレスは登録されていません');
+    }
+    if (remaining.length === 0) {
+      throw new Error('管理者が0人になるため削除できません。先に別の管理者を追加してください');
+    }
+    PropertiesService.getScriptProperties().setProperty('ADMIN_EMAILS', remaining.join(','));
+    return { success: true, emails: remaining };
+  } catch (err) {
+    console.error('removeAdminEmail failed', err);
+    return { success: false, error: String(err.message || err) };
+  }
+}
+
 function renderAdminPage_() {
   if (!isAuthorizedAdmin_()) {
     return HtmlService.createHtmlOutput(

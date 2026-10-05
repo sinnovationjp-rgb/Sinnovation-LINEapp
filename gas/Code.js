@@ -49,6 +49,12 @@ function approveReservation(id, editedData) {
     if (!reservation) {
       throw new Error(`予約ID ${id} が見つかりません`);
     }
+    if (reservation['ステータス'] === '確定') {
+      // 承認リンクの二重送信・連打・画面の再読み込みなどで同じ予約が再度承認された場合、
+      // カレンダーの二重登録やLINE/メール/Discordの二重通知を防ぐため、何もせず成功を返す
+      console.warn(`approveReservation: 予約ID ${id} は既に確定済みのため、処理をスキップします`);
+      return { success: true };
+    }
 
     // editedDataは承認画面のフォームから届く値。LINE UserIdなどフォームにない項目まで
     // 上書きされないよう、フォームが実際に持つ項目だけを許可リストとして反映する
@@ -150,6 +156,12 @@ function cancelReservation(id) {
     const reservation = SheetService.getReservationById(id);
     if (!reservation) {
       throw new Error(`予約ID ${id} が見つかりません`);
+    }
+    if (reservation['ステータス'] === 'キャンセル') {
+      // 既にキャンセル済みの予約への二重操作（パネルの連打・再読み込み等）で
+      // LINE/Discordへの二重通知が飛ぶのを防ぐため、何もせず成功を返す
+      console.warn(`cancelReservation: 予約ID ${id} は既にキャンセル済みのため、処理をスキップします`);
+      return { success: true };
     }
     const wasConfirmed = reservation['ステータス'] === '確定';
 

@@ -103,39 +103,41 @@
         <form id="approval-form">
           <div class="card">
             <div class="card-head">
-              <input class="name-input" type="text" name="氏名（カタカナ）" aria-label="氏名（カタカナ）">
-              <input class="phone-input" type="text" name="電話番号" aria-label="電話番号">
+              <label class="field-label" for="f-name" style="display:none;">氏名（カタカナ）</label>
+              <input id="f-name" class="name-input" type="text" name="氏名（カタカナ）">
+              <label class="field-label" for="f-phone" style="display:none;">電話番号</label>
+              <input id="f-phone" class="phone-input" type="text" name="電話番号">
             </div>
             <div class="card-body">
               <div class="field">
-                <label class="field-label">予約日時</label>
-                <input class="field-input" type="text" name="予約日時">
+                <label class="field-label" for="f-datetime">予約日時</label>
+                <input id="f-datetime" class="field-input" type="text" name="予約日時">
               </div>
               <div class="field-row">
                 <div class="field">
-                  <label class="field-label">人数</label>
-                  <input class="field-input" type="text" name="人数">
+                  <label class="field-label" for="f-headcount">人数</label>
+                  <input id="f-headcount" class="field-input" type="text" name="人数">
                 </div>
                 <div class="field">
-                  <label class="field-label">飲み放題</label>
-                  <input class="field-input" type="text" name="飲み放題">
+                  <label class="field-label" for="f-drink">飲み放題</label>
+                  <input id="f-drink" class="field-input" type="text" name="飲み放題">
                 </div>
               </div>
               <div class="field">
-                <label class="field-label">スペース</label>
-                <input class="field-input" type="text" name="スペース">
+                <label class="field-label" for="f-space">スペース</label>
+                <input id="f-space" class="field-input" type="text" name="スペース">
               </div>
               <div class="field">
-                <label class="field-label">ご利用履歴</label>
-                <input class="field-input" type="text" name="ご利用履歴">
+                <label class="field-label" for="f-history">ご利用履歴</label>
+                <input id="f-history" class="field-input" type="text" name="ご利用履歴">
               </div>
               <div class="field">
-                <label class="field-label">メールアドレス</label>
-                <input class="field-input" type="text" name="メールアドレス">
+                <label class="field-label" for="f-email">メールアドレス</label>
+                <input id="f-email" class="field-input" type="text" name="メールアドレス">
               </div>
               <div class="field">
-                <label class="field-label">備考</label>
-                <textarea class="field-input" name="備考" rows="2"></textarea>
+                <label class="field-label" for="f-note">備考</label>
+                <textarea id="f-note" class="field-input" name="備考" rows="2"></textarea>
               </div>
             </div>
           </div>

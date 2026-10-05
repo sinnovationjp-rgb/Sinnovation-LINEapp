@@ -147,6 +147,11 @@
   }
   .modal-add-row input:focus { border-color: var(--accent); }
   .modal-add-row button { border: none; border-radius: 10px; padding: 10px 16px; background: var(--accent); color: #fff; font: inherit; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+  .role-select {
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 10px; font: inherit; font-size: 0.82rem;
+    color: var(--text); background: var(--surface); cursor: pointer; flex-shrink: 0;
+  }
+  .role-select:focus { border-color: var(--accent); }
   .modal-section-label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin: 0 0 6px; }
   .admin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 240px; overflow-y: auto; }
   .admin-list li { display: flex; align-items: center; gap: 10px; padding: 8px 2px; }
@@ -184,8 +189,9 @@
     <div style="display: flex; align-items: center; gap: 10px;">
       <button class="admin-btn" id="manage-admins-btn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-        管理者を管理
+        ユーザーを管理
       </button>
+      <span class="pill pending" id="viewer-badge" style="display:none;">閲覧のみ</span>
       <div class="today tabular" id="today-label"></div>
     </div>
   </div>
@@ -260,15 +266,19 @@
 
 <div class="modal-overlay" id="admin-modal-overlay"></div>
 <div class="modal" id="admin-modal" aria-hidden="true">
-  <div class="modal-head"><h2>管理者を管理</h2></div>
+  <div class="modal-head"><h2>ユーザーを管理</h2></div>
   <div class="modal-body">
     <div class="modal-add-row">
       <input type="email" id="admin-email-input" placeholder="メールアドレスを追加">
+      <select id="admin-role-input" class="role-select">
+        <option value="admin">管理者</option>
+        <option value="viewer">閲覧者</option>
+      </select>
       <button id="admin-add-btn">追加</button>
     </div>
     <div class="modal-error" id="admin-error"></div>
     <div>
-      <p class="modal-section-label">アクセスできる管理者</p>
+      <p class="modal-section-label">アクセスできるユーザー</p>
       <ul class="admin-list" id="admin-list"></ul>
     </div>
   </div>
@@ -280,6 +290,8 @@
 <script>
   // サーバー(SheetService.getAllReservations)から渡された予約データ。フィールド名はスプレッドシートの列名そのまま。
   var reservations = <?!= toSafeJson_(reservations) ?>;
+  // 'admin'（承認・却下・キャンセル・ユーザー管理が可能） または 'viewer'（閲覧のみ）
+  var myRole = <?!= toSafeJson_(role) ?>;
 
   var TABS = [
     { key: 'all', label: 'すべて' },
@@ -422,7 +434,11 @@
     document.getElementById('d-note').textContent = r['備考'] || '（備考なし）';
 
     var actions = document.getElementById('panel-actions');
-    if (r['ステータス'] === '仮予約') {
+    if (myRole !== 'admin') {
+      // 閲覧者は内容を見るだけで、承認・却下・キャンセルの操作はできない
+      actions.innerHTML = '<button class="btn ghost" id="act-close-viewer">閉じる</button>';
+      document.getElementById('act-close-viewer').addEventListener('click', closePanel);
+    } else if (r['ステータス'] === '仮予約') {
       actions.innerHTML =
         '<button class="btn danger-ghost" id="act-reject">却下</button>' +
         '<button class="btn primary" id="act-approve">承認して確定</button>';
@@ -487,7 +503,7 @@
     renderTable();
   });
 
-  // ---- 管理者の追加・削除（Googleドライブの共有ダイアログ風UI） ----
+  // ---- ユーザー（管理者・閲覧者）の追加・削除・権限変更（Googleドライブの共有ダイアログ風UI） ----
   function openAdminModal() {
     document.getElementById('admin-error').textContent = '';
     google.script.run.withSuccessHandler(function (res) {
@@ -495,10 +511,10 @@
         document.getElementById('admin-error').textContent = res.error;
         return;
       }
-      renderAdminList(res.emails);
+      renderAdminList(res.users);
     }).withFailureHandler(function (err) {
       document.getElementById('admin-error').textContent = err && err.message ? err.message : String(err);
-    }).getAdminEmails();
+    }).getAllUsers();
 
     document.getElementById('admin-modal').classList.add('is-open');
     document.getElementById('admin-modal').setAttribute('aria-hidden', 'false');
@@ -511,43 +527,70 @@
     document.getElementById('admin-modal-overlay').classList.remove('is-open');
   }
 
-  function renderAdminList(emails) {
+  function renderAdminList(users) {
     var list = document.getElementById('admin-list');
-    list.innerHTML = emails.map(function (email) {
-      var initial = escapeHtml_(email.charAt(0).toUpperCase());
+    list.innerHTML = users.map(function (u) {
+      var initial = escapeHtml_(u.email.charAt(0).toUpperCase());
       return '<li>' +
         '<span class="admin-avatar">' + initial + '</span>' +
-        '<span class="admin-email">' + escapeHtml_(email) + '</span>' +
-        '<button class="admin-remove-btn" data-email="' + escapeHtml_(email) + '" aria-label="削除" title="削除">' +
+        '<span class="admin-email">' + escapeHtml_(u.email) + '</span>' +
+        '<select class="role-select admin-role-select" data-email="' + escapeHtml_(u.email) + '">' +
+          '<option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>管理者</option>' +
+          '<option value="viewer"' + (u.role === 'viewer' ? ' selected' : '') + '>閲覧者</option>' +
+        '</select>' +
+        '<button class="admin-remove-btn" data-email="' + escapeHtml_(u.email) + '" aria-label="削除" title="削除">' +
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
         '</button>' +
       '</li>';
     }).join('');
 
+    list.querySelectorAll('.admin-role-select').forEach(function (select) {
+      select.addEventListener('change', function () {
+        var email = select.dataset.email;
+        var role = select.value;
+        document.getElementById('admin-error').textContent = '';
+        google.script.run.withSuccessHandler(function (res) {
+          if (!res.success) {
+            document.getElementById('admin-error').textContent = res.error;
+          }
+          renderAdminList(res.users || users); // 失敗時も現在の正しい状態に戻す
+        }).withFailureHandler(function (err) {
+          document.getElementById('admin-error').textContent = err && err.message ? err.message : String(err);
+          renderAdminList(users);
+        }).setUserRole(email, role);
+      });
+    });
+
     list.querySelectorAll('.admin-remove-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var email = btn.dataset.email;
-        if (!confirm(email + ' を管理者から削除しますか？')) return;
+        if (!confirm(email + ' を削除しますか？')) return;
         document.getElementById('admin-error').textContent = '';
         google.script.run.withSuccessHandler(function (res) {
           if (!res.success) {
             document.getElementById('admin-error').textContent = res.error;
             return;
           }
-          renderAdminList(res.emails);
+          renderAdminList(res.users);
         }).withFailureHandler(function (err) {
           document.getElementById('admin-error').textContent = err && err.message ? err.message : String(err);
-        }).removeAdminEmail(email);
+        }).removeUser(email);
       });
     });
   }
 
-  document.getElementById('manage-admins-btn').addEventListener('click', openAdminModal);
+  if (myRole === 'admin') {
+    document.getElementById('manage-admins-btn').addEventListener('click', openAdminModal);
+  } else {
+    document.getElementById('manage-admins-btn').style.display = 'none';
+    document.getElementById('viewer-badge').style.display = 'inline-flex';
+  }
   document.getElementById('admin-modal-close').addEventListener('click', closeAdminModal);
   document.getElementById('admin-modal-overlay').addEventListener('click', closeAdminModal);
   document.getElementById('admin-add-btn').addEventListener('click', function () {
     var input = document.getElementById('admin-email-input');
     var email = input.value.trim();
+    var role = document.getElementById('admin-role-input').value;
     if (!email) return;
     document.getElementById('admin-error').textContent = '';
     google.script.run.withSuccessHandler(function (res) {
@@ -555,11 +598,11 @@
         document.getElementById('admin-error').textContent = res.error;
         return;
       }
-      renderAdminList(res.emails);
+      renderAdminList(res.users);
       input.value = '';
     }).withFailureHandler(function (err) {
       document.getElementById('admin-error').textContent = err && err.message ? err.message : String(err);
-    }).addAdminEmail(email);
+    }).addUser(email, role);
   });
   document.getElementById('admin-email-input').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {

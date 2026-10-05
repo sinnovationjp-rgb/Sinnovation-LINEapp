@@ -155,14 +155,23 @@ function renderApprovalPage_(id) {
 }
 
 // 管理者アカウントのみアクセス許可（スクリプトプロパティADMIN_EMAILSに登録されたメールアドレスの一覧と照合）
+// 承認・却下・キャンセル・ユーザー管理など「操作」を伴う機能はすべてこれで判定する
 function isAuthorizedAdmin_() {
+  return getUserRole_() === 'admin';
+}
+
+// 画面を閲覧できるか（管理者 or 閲覧者）。操作の可否は別途isAuthorizedAdmin_()で判定する
+function isAuthorizedViewer_() {
+  return getUserRole_() !== null;
+}
+
+// 現在ログインしているアカウントの権限（'admin' | 'viewer' | null）を返す
+function getUserRole_() {
   const email = (Session.getActiveUser().getEmail() || '').toLowerCase();
-  if (!email) return false;
-  const allowList = (PropertiesService.getScriptProperties().getProperty('ADMIN_EMAILS') || '')
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  return allowList.indexOf(email) !== -1;
+  if (!email) return null;
+  if (getAdminEmailList_().some((e) => e.toLowerCase() === email)) return 'admin';
+  if (getViewerEmailList_().some((e) => e.toLowerCase() === email)) return 'viewer';
+  return null;
 }
 
 function getAdminEmailList_() {
@@ -172,71 +181,150 @@ function getAdminEmailList_() {
     .filter(Boolean);
 }
 
-// 管理者画面から、現在登録されている管理者の一覧を取得する
-function getAdminEmails() {
+function getViewerEmailList_() {
+  return (PropertiesService.getScriptProperties().getProperty('VIEWER_EMAILS') || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function getAllUsersList_() {
+  const admins = getAdminEmailList_().map((email) => ({ email: email, role: 'admin' }));
+  const viewers = getViewerEmailList_().map((email) => ({ email: email, role: 'viewer' }));
+  return admins.concat(viewers);
+}
+
+// 管理者画面から、現在登録されている管理者・閲覧者の一覧を取得する（管理者のみ）
+function getAllUsers() {
   if (!isAuthorizedAdmin_()) {
     return { success: false, error: 'アクセス権がありません' };
   }
-  return { success: true, emails: getAdminEmailList_() };
+  return { success: true, users: getAllUsersList_() };
 }
 
-// 管理者画面から、新しい管理者のメールアドレスを追加する
-function addAdminEmail(email) {
+// 管理者画面から、新しいユーザー（管理者 or 閲覧者）を追加する（管理者のみ）
+function addUser(email, role) {
   try {
     if (!isAuthorizedAdmin_()) {
       throw new Error('アクセス権がありません');
+    }
+    if (role !== 'admin' && role !== 'viewer') {
+      throw new Error('権限の指定が正しくありません');
     }
     const trimmed = String(email || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       throw new Error('正しいメールアドレスを入力してください');
     }
-    const emails = getAdminEmailList_();
-    if (emails.some((e) => e.toLowerCase() === trimmed.toLowerCase())) {
+    const lower = trimmed.toLowerCase();
+    const admins = getAdminEmailList_();
+    const viewers = getViewerEmailList_();
+    if (admins.some((e) => e.toLowerCase() === lower) || viewers.some((e) => e.toLowerCase() === lower)) {
       throw new Error('既に登録されています');
     }
-    emails.push(trimmed);
-    PropertiesService.getScriptProperties().setProperty('ADMIN_EMAILS', emails.join(','));
-    return { success: true, emails: emails };
+
+    const props = PropertiesService.getScriptProperties();
+    if (role === 'admin') {
+      admins.push(trimmed);
+      props.setProperty('ADMIN_EMAILS', admins.join(','));
+    } else {
+      viewers.push(trimmed);
+      props.setProperty('VIEWER_EMAILS', viewers.join(','));
+    }
+    return { success: true, users: getAllUsersList_() };
   } catch (err) {
-    console.error('addAdminEmail failed', err);
+    console.error('addUser failed', err);
     return { success: false, error: String(err.message || err) };
   }
 }
 
-// 管理者画面から、管理者のメールアドレスを削除する（管理者が0人になる操作は拒否する）
-function removeAdminEmail(email) {
+// 管理者画面から、ユーザーを削除する（管理者が0人になる操作は拒否する）（管理者のみ）
+function removeUser(email) {
   try {
     if (!isAuthorizedAdmin_()) {
       throw new Error('アクセス権がありません');
     }
     const target = String(email || '').trim().toLowerCase();
-    const emails = getAdminEmailList_();
-    const remaining = emails.filter((e) => e.toLowerCase() !== target);
-    if (remaining.length === emails.length) {
+    const admins = getAdminEmailList_();
+    const viewers = getViewerEmailList_();
+    const wasAdmin = admins.some((e) => e.toLowerCase() === target);
+    const wasViewer = viewers.some((e) => e.toLowerCase() === target);
+    if (!wasAdmin && !wasViewer) {
       throw new Error('指定されたメールアドレスは登録されていません');
     }
-    if (remaining.length === 0) {
+    if (wasAdmin && admins.length === 1) {
       throw new Error('管理者が0人になるため削除できません。先に別の管理者を追加してください');
     }
-    PropertiesService.getScriptProperties().setProperty('ADMIN_EMAILS', remaining.join(','));
-    return { success: true, emails: remaining };
+
+    const props = PropertiesService.getScriptProperties();
+    if (wasAdmin) {
+      props.setProperty('ADMIN_EMAILS', admins.filter((e) => e.toLowerCase() !== target).join(','));
+    }
+    if (wasViewer) {
+      props.setProperty('VIEWER_EMAILS', viewers.filter((e) => e.toLowerCase() !== target).join(','));
+    }
+    return { success: true, users: getAllUsersList_() };
   } catch (err) {
-    console.error('removeAdminEmail failed', err);
+    console.error('removeUser failed', err);
+    return { success: false, error: String(err.message || err) };
+  }
+}
+
+// 管理者画面から、既存ユーザーの権限（管理者⇔閲覧者）を切り替える（管理者のみ）
+function setUserRole(email, role) {
+  try {
+    if (!isAuthorizedAdmin_()) {
+      throw new Error('アクセス権がありません');
+    }
+    if (role !== 'admin' && role !== 'viewer') {
+      throw new Error('権限の指定が正しくありません');
+    }
+    const target = String(email || '').trim().toLowerCase();
+    const admins = getAdminEmailList_();
+    const viewers = getViewerEmailList_();
+    const adminEntry = admins.find((e) => e.toLowerCase() === target);
+    const viewerEntry = viewers.find((e) => e.toLowerCase() === target);
+    const original = adminEntry || viewerEntry;
+    if (!original) {
+      throw new Error('指定されたメールアドレスは登録されていません');
+    }
+    const currentRole = adminEntry ? 'admin' : 'viewer';
+    if (currentRole === role) {
+      return { success: true, users: getAllUsersList_() };
+    }
+    if (currentRole === 'admin' && admins.length === 1) {
+      throw new Error('管理者が0人になるため変更できません。先に別の管理者を追加してください');
+    }
+
+    const newAdmins = admins.filter((e) => e.toLowerCase() !== target);
+    const newViewers = viewers.filter((e) => e.toLowerCase() !== target);
+    if (role === 'admin') {
+      newAdmins.push(original);
+    } else {
+      newViewers.push(original);
+    }
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('ADMIN_EMAILS', newAdmins.join(','));
+    props.setProperty('VIEWER_EMAILS', newViewers.join(','));
+    return { success: true, users: getAllUsersList_() };
+  } catch (err) {
+    console.error('setUserRole failed', err);
     return { success: false, error: String(err.message || err) };
   }
 }
 
 function renderAdminPage_() {
-  if (!isAuthorizedAdmin_()) {
+  const role = getUserRole_();
+  if (!role) {
     return HtmlService.createHtmlOutput(
       '<div style="font-family:sans-serif;text-align:center;padding:80px 20px;color:#211d17;">' +
       '<h1>アクセス権がありません</h1>' +
-      '<p>この画面は管理者アカウントでログインした場合のみ利用できます。</p>' +
+      '<p>この画面は管理者・閲覧者として登録されたアカウントでログインした場合のみ利用できます。</p>' +
       '</div>'
     ).setTitle('アクセス権がありません');
   }
   const template = HtmlService.createTemplateFromFile('AdminPage');
   template.reservations = SheetService.getAllReservations();
+  template.role = role;
   return template.evaluate().setTitle('予約管理');
 }
 

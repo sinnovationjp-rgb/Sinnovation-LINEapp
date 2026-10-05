@@ -357,3 +357,58 @@ function jsonResponse_(obj) {
 function toSafeJson_(obj) {
   return JSON.stringify(obj === undefined ? null : obj).replace(/</g, '\\u003c');
 }
+
+// 設定診断用: スクリプトプロパティが一通り設定され、実際にアクセスできるかをまとめて確認する。
+// アカウント移行・引き継ぎのたびに「あれ、動かない」の切り分けを早くするため、
+// GASエディタの関数選択プルダウンから checkConfig を直接実行できるようにしてある
+function checkConfig() {
+  const props = PropertiesService.getScriptProperties();
+  const lines = [];
+
+  function report(label, ok, detail) {
+    lines.push(`${ok ? '✅' : '❌'} ${label}${detail ? `: ${detail}` : ''}`);
+  }
+
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  report('SPREADSHEET_ID', !!spreadsheetId);
+  if (spreadsheetId) {
+    try {
+      const ss = SpreadsheetApp.openById(spreadsheetId);
+      report('  → スプレッドシートを開けるか', true, ss.getName());
+    } catch (err) {
+      report('  → スプレッドシートを開けるか', false, String(err));
+    }
+  }
+
+  const calendarId = props.getProperty('CALENDAR_ID');
+  report('CALENDAR_ID', !!calendarId);
+  if (calendarId) {
+    try {
+      const cal = CalendarApp.getCalendarById(calendarId);
+      report('  → カレンダーにアクセスできるか', !!cal, cal ? cal.getName() : '見つかりません（IDが間違っているか、共有権限がない可能性）');
+    } catch (err) {
+      report('  → カレンダーにアクセスできるか', false, String(err));
+    }
+  }
+
+  const discordUrl = props.getProperty('DISCORD_WEBHOOK_URL');
+  const slackUrl = props.getProperty('SLACK_WEBHOOK_URL');
+  report('DISCORD_WEBHOOK_URL または SLACK_WEBHOOK_URL', !!(discordUrl || slackUrl));
+
+  const adminEmails = props.getProperty('ADMIN_EMAILS');
+  report('ADMIN_EMAILS', !!adminEmails, adminEmails || '（未設定だと管理者画面に誰も入れず、通知失敗時のフォールバックメールも届きません）');
+
+  const lineToken = props.getProperty('LINE_CHANNEL_ACCESS_TOKEN');
+  const lineId = props.getProperty('LINE_CHANNEL_ID');
+  const lineSecret = props.getProperty('LINE_CHANNEL_SECRET');
+  const hasLineCreds = !!(lineToken || (lineId && lineSecret));
+  report('LINE認証情報（LINE_CHANNEL_ACCESS_TOKEN、またはLINE_CHANNEL_ID+LINE_CHANNEL_SECRET）', hasLineCreds);
+  if (hasLineCreds) {
+    report('  → LINEアクセストークンを実際に取得できるか', LineService.debugConnection());
+  }
+
+  const report_ = lines.join('\n');
+  console.log(report_);
+  return report_;
+}
+

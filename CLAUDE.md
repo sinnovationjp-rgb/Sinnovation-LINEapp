@@ -47,6 +47,7 @@ README.mdの構成図を参照してください（gas/配下はclaspでプッ�
 ## コーディング規約
 - GAS側は関心事ごとにファイル分割（Code.js / SheetService.js / CalendarService.js / NotifyService.js / LineService.js / Trigger.js）
 - NotifyService.jsはDiscordとSlackのWebhook形式差異を吸収する共通インターフェースにする
+- NotifyService.send()は一時的な通信エラー・レート制限に備えて最大3回まで間隔を空けて再送し、それでも失敗した場合は`ADMIN_EMAILS`宛てにフォールバックメールを送って通知の見落としを防ぐ
 - 外部API呼び出しは必ずtry/catchし、失敗時はログを残す
 - フロントは1画面1HTMLファイル。共通処理はjs/に切り出す
 

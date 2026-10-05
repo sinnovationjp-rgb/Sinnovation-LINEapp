@@ -315,10 +315,16 @@ function setUserRole(email, role) {
 function renderAdminPage_() {
   const role = getUserRole_();
   if (!role) {
+    const detectedEmail = Session.getActiveUser().getEmail() || '';
     return HtmlService.createHtmlOutput(
       '<div style="font-family:sans-serif;text-align:center;padding:80px 20px;color:#211d17;">' +
       '<h1>アクセス権がありません</h1>' +
       '<p>この画面は管理者・閲覧者として登録されたアカウントでログインした場合のみ利用できます。</p>' +
+      '<p style="color:#857b68;font-size:0.9rem;">' +
+      (detectedEmail
+        ? `ログイン中のアカウント: ${escapeHtmlServer_(detectedEmail)}<br>このアドレスが「ユーザーを管理」に登録したものと一致しているか確認してください。`
+        : 'ログイン中のアカウントを検出できませんでした。Googleアカウントにログインした状態でこの画面を開いているか確認してください。') +
+      '</p>' +
       '</div>'
     ).setTitle('アクセス権がありません');
   }
@@ -326,6 +332,16 @@ function renderAdminPage_() {
   template.reservations = SheetService.getAllReservations();
   template.role = role;
   return template.evaluate().setTitle('予約管理');
+}
+
+// renderAdminPage_のエラー画面用（HtmlOutputに直接文字列結合するため、簡易的なエスケープを用意する）
+function escapeHtmlServer_(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function cancelReservation(id) {

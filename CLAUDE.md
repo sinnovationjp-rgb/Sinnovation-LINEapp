@@ -27,6 +27,16 @@ doGet/doPostは公開URLを1つしか持てないため、クエリパラメー�
 - 既存の1つのWebアプリデプロイ（アクセス可能ユーザー設定は「全員」）で予約用・管理者用の両方を兼用できる。実機確認の結果、匿名のLINEユーザーには`Session.getActiveUser()`が空になり予約機能に影響しない一方、スクリプト所有ドメイン（sinnovation.jp）にログイン済みのスタッフがアクセスした場合は同関数でメールアドレスが取得できるため、`ADMIN_EMAILS`/`VIEWER_EMAILS`との照合だけで管理者画面のアクセス制御が成立する。別デプロイは不要
 - **【重要・GASの制約】Gmail等の社外アカウントを管理者/閲覧者にする場合の注意**: 上記の`Session.getActiveUser()`挙動は、sinnovation.jpドメイン内のアカウントではWorkspaceの設定により暗黙的に機能するが、個人のGmail等の社外アカウントでは**そのGASプロジェクト自体への閲覧権限が明示的に共有されていないとメールアドレスを取得できず**、`ADMIN_EMAILS`/`VIEWER_EMAILS`に登録済みでも「アクセス権がありません」になる（2026-10-05に実機で確認）。対応: 「ユーザーを管理」での登録に加えて、GASプロジェクトのオーナー（川合さん）がGASエディタの共有機能（またはGoogleドライブ上のプロジェクトファイル）から、対象のGmailアドレスを「閲覧者」としてプロジェクトに共有する必要がある。AdminPage.htmlの「ユーザーを管理」モーダルにもこの注意書きを表示している
 
+### google.script.runで呼べる関数（重要・セキュリティ）
+Webアプリは`executeAs: USER_DEPLOYING`／`access: ANYONE_ANONYMOUS`でデプロイしているため、承認画面・管理者画面（ログイン不要の「アクセス権がありません」画面を含む）などHtmlServiceのページを開いた人なら誰でも、ブラウザの開発者ツールから`google.script.run.<関数名>()`で**名前の末尾が`_`でないすべてのトップレベル関数**を呼び出せ、スクリプト所有者の権限で実行される。トップレベル関数を追加するときは、必ず次のどれに当たるかを決めること。
+
+- 内部ヘルパー → 名前の末尾を`_`にする（google.script.runからは呼べなくなるが、GASエディタの関数選択プルダウンにも表示されなくなる）
+- 画面から呼ぶ公開API → 誰に呼ばれても安全に作る。操作系は`isAuthorizedAdmin_()`で保護する（`approveReservation`は承認リンクを知っていれば承認できる仕様のため例外的に無保護）
+- GASエディタから手動実行する保守・診断用の関数（`checkConfig`、`createDailyTrigger`、`fixPhoneNumberLeadingZeros`、`debugLine*`など） → 先頭で`assertEditorRun_('関数名')`を呼ぶ
+- トリガーのハンドラー（`sendReminders`、`archiveOldReservations`） → 先頭で`assertEditorOrTriggerRun_(e, '関数名')`を呼ぶ（エディタからの手動実行も可能）
+
+ガードの仕組み（`Code.js`）: Webアプリ経由では`Session.getEffectiveUser()`が常にスクリプト所有者、`Session.getActiveUser()`が訪問者（匿名・社外なら空文字）になる。エディタからの実行では両者とも実行した本人で一致するため、一致しない場合は拒否する。トリガー実行時は`getActiveUser()`が取れる保証がないため、イベントオブジェクトの`triggerUid`が、このプロジェクトに登録済みで同じハンドラー名を持つトリガーのID（`Trigger.getUniqueId()`）と一致すれば許可する。ガードは拒否時に例外を投げるので、万一トリガー実行が拒否された場合もGASのトリガー失敗通知メールで気付ける。
+
 ### CORSの注意点（重要）
 GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フロントから`Content-Type: application/json`でPOSTするとプリフライトで失敗するので、`Content-Type: text/plain;charset=utf-8`でJSON文字列を送り、GAS側は`JSON.parse(e.postData.contents)`で受け取ってください。
 
@@ -109,3 +119,4 @@ TASKS.mdのPhase順に、1フェーズずつ実装→動作確認→次フェー
 ### その他、確認が取れていない項目
 - XSS修正（PR #30）の再テスト結果（管理者画面で`<img src=x onerror=...>`が実行されずテキスト表示になるか）
 - `docs/test-checklist.md`の全項目の実施状況
+- 保守・診断用関数へのガード追加（`assertEditorRun_`/`assertEditorOrTriggerRun_`）後、実機での確認（`docs/test-checklist.md`の「6. セキュリティ」「4. 前日リマインド」）。特に、`clasp push`＋デプロイ後の最初の朝9時の`sendReminders`トリガー実行が、GASの「実行数」画面で失敗になっていないか（トリガー経由の判定はtriggerUidの照合に頼っており、実機では未検証のため）。既存のトリガーはハンドラー名を変えていないので再登録は不要

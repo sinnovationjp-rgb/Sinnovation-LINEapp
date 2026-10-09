@@ -272,5 +272,6 @@ var SheetService = (function () {
 
 // GASエディタで一度だけ手動実行して、既存データの電話番号の先頭0が消えている問題を一括修正する
 function fixPhoneNumberLeadingZeros() {
+  assertEditorRun_('fixPhoneNumberLeadingZeros');
   SheetService.fixPhoneNumberLeadingZeros();
 }

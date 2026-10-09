@@ -1,4 +1,5 @@
-function sendReminders() {
+function sendReminders(e) {
+  assertEditorOrTriggerRun_(e, 'sendReminders');
   try {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -40,6 +41,7 @@ function buildReminderMessage_(reservation) {
 
 // GASエディタで初回のみ手動実行してリマインド用の日次トリガーを登録する
 function createDailyTrigger() {
+  assertEditorRun_('createDailyTrigger');
   const alreadyRegistered = ScriptApp.getProjectTriggers().some(
     (trigger) => trigger.getHandlerFunction() === 'sendReminders'
   );
@@ -56,12 +58,14 @@ function createDailyTrigger() {
 
 // 古い確定済み/キャンセル済み予約データを「予約一覧_archive」シートへ退避し、
 // メインシートの行数肥大化によるパフォーマンス低下を防ぐ
-function archiveOldReservations() {
+function archiveOldReservations(e) {
+  assertEditorOrTriggerRun_(e, 'archiveOldReservations');
   SheetService.archiveOldReservations();
 }
 
 // GASエディタで初回のみ手動実行してアーカイブ用の月次トリガーを登録する
 function createArchiveTrigger() {
+  assertEditorRun_('createArchiveTrigger');
   const alreadyRegistered = ScriptApp.getProjectTriggers().some(
     (trigger) => trigger.getHandlerFunction() === 'archiveOldReservations'
   );

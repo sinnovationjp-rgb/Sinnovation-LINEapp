@@ -183,6 +183,43 @@ function getRoleForEmail_(email) {
   return null;
 }
 
+// 末尾が「_」でないトップレベル関数は、承認画面・管理者画面などHtmlServiceのページを開いた人なら誰でも（匿名でも）
+// ブラウザの開発者ツールから google.script.run.<関数名>() で呼び出せ、スクリプト所有者の権限で実行されてしまう。
+// GASエディタやトリガーからだけ実行したい保守・診断用の関数は、先頭で以下のガードを呼んでWebアプリ経由の呼び出しを拒否する
+// （末尾を「_」にするとgoogle.script.runからは隠れるが、エディタの関数選択プルダウンからも消えてしまうため使えない）
+
+// Webアプリは「自分として実行（USER_DEPLOYING）」でデプロイしているため、Webアプリ経由の呼び出しでは
+// getEffectiveUser()が常にスクリプト所有者になる一方、getActiveUser()は訪問者（匿名・社外アカウントなら空文字）になる。
+// GASエディタからの実行では両者とも実行した本人になって一致するので、これで呼び出し元を区別できる
+function isEditorRun_() {
+  const active = (Session.getActiveUser().getEmail() || '').toLowerCase();
+  const effective = (Session.getEffectiveUser().getEmail() || '').toLowerCase();
+  return !!active && active === effective;
+}
+
+// トリガー実行時にgetActiveUser()でメールアドレスが取れるかはGASのドキュメント上保証されていないため、
+// トリガーが渡すイベントオブジェクトのtriggerUidを、このプロジェクトに登録済みのトリガーのIDと照合して判定する
+function isOwnTriggerRun_(e, handlerFunction) {
+  const triggerUid = e && e.triggerUid ? String(e.triggerUid) : '';
+  if (!triggerUid) return false;
+  return ScriptApp.getProjectTriggers().some(
+    (trigger) => trigger.getUniqueId() === triggerUid && trigger.getHandlerFunction() === handlerFunction
+  );
+}
+
+function assertEditorRun_(functionName) {
+  if (!isEditorRun_()) {
+    throw new Error(`${functionName}はGASエディタからのみ実行できます`);
+  }
+}
+
+// トリガーのハンドラー関数用（エディタからの手動実行も許可する）
+function assertEditorOrTriggerRun_(e, functionName) {
+  if (!isEditorRun_() && !isOwnTriggerRun_(e, functionName)) {
+    throw new Error(`${functionName}はGASエディタまたはトリガーからのみ実行できます`);
+  }
+}
+
 const LOGIN_SESSION_PREFIX = 'LOGIN_SESSION_';
 const LOGIN_SESSION_DAYS = 7;
 
@@ -627,7 +664,9 @@ function toSafeJson_(obj) {
 // 設定診断用: スクリプトプロパティが一通り設定され、実際にアクセスできるかをまとめて確認する。
 // アカウント移行・引き継ぎのたびに「あれ、動かない」の切り分けを早くするため、
 // GASエディタの関数選択プルダウンから checkConfig を直接実行できるようにしてある
+// （ADMIN_EMAILSなどの設定内容を返すため、Webアプリ経由の呼び出しは拒否する）
 function checkConfig() {
+  assertEditorRun_('checkConfig');
   const props = PropertiesService.getScriptProperties();
   const lines = [];
 

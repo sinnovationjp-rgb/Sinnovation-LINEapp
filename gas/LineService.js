@@ -208,16 +208,19 @@ var LineService = (function () {
 // 1. debugLineConnection() → アクセストークンが取得できるか確認（チャネルID/SECRETの設定ミスを検出）
 // 2. debugLineTestPush('Uxxxxxxxx...') → スプレッドシートのLINE UserId列の値を渡して実際にテスト通知を送る
 function debugLineConnection() {
+  assertEditorRun_('debugLineConnection');
   return LineService.debugConnection();
 }
 
 function debugLineTestPush(userId) {
+  assertEditorRun_('debugLineTestPush');
   LineService.debugTestPush(userId);
 }
 
 // GASエディタの「実行」ボタンは関数に引数を渡せないため、スクリプトプロパティ経由で渡す。
 // 事前にスクリプトプロパティ DEBUG_TEST_USER_ID に、スプレッドシートの「LINE UserId」列の値を設定してから実行する
 function debugLineTestPushFromProperty() {
+  assertEditorRun_('debugLineTestPushFromProperty');
   const userId = PropertiesService.getScriptProperties().getProperty('DEBUG_TEST_USER_ID');
   if (!userId) {
     console.error('debugLineTestPushFromProperty: スクリプトプロパティ DEBUG_TEST_USER_ID が未設定です（プロジェクトの設定 > スクリプトプロパティ で、スプレッドシートのLINE UserId列の値を設定してください）');
@@ -228,11 +231,13 @@ function debugLineTestPushFromProperty() {
 
 // 今のチャネルID/SECRETが実際にどの公式アカウント（LINEのdisplayName・basicId）を制御しているか確認する
 function debugLineBotInfo() {
+  assertEditorRun_('debugLineBotInfo');
   LineService.debugBotInfo();
 }
 
 // DEBUG_TEST_USER_IDに設定したuserIdが、今のチャネルから見て友だちかどうかを直接確認する
 function debugLineFriendStatus() {
+  assertEditorRun_('debugLineFriendStatus');
   const userId = PropertiesService.getScriptProperties().getProperty('DEBUG_TEST_USER_ID');
   if (!userId) {
     console.error('debugLineFriendStatus: スクリプトプロパティ DEBUG_TEST_USER_ID が未設定です');

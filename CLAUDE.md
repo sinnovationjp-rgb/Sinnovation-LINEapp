@@ -29,6 +29,16 @@ doGet/doPostは公開URLを1つしか持てないため、クエリパラメー�
   2. **Gmail等の社外アカウント**: 「自分として実行」のWebアプリでは、`Session.getActiveUser()`はスクリプト所有者と同じWorkspaceドメインのユーザーにしかメールアドレスを返さない（Googleの公式仕様。GASプロジェクトを共有しても変わらないことを2026-10-05に実機で確認済み）。そのため管理画面を開くとログイン画面が表示され、登録済みのアドレスを入力すると`requestAdminLoginLink()`がログイン用リンク（`?page=admin&session=<64桁のトークン>`）をメールで送る。トークンはスクリプトプロパティ`LOGIN_SESSION_<トークン>`に`{email, expiresAt}`として7日間保存され、画面からの操作のたびに`sessionToken`として送られる。権限は毎回ADMIN_EMAILS/VIEWER_EMAILSと照合し直すので、登録を削除すればトークンも即座に無効になる。未登録アドレスにはメールを送らないが応答は同じ（登録有無を推測させない）、同じアドレスへの送信は1分に1回まで。ログアウトボタン（`logoutAdminSession`）でトークンを削除できる。期限切れのセッションは新しいリンク発行時に掃除される
 - **`WEB_APP_URL`（スクリプトプロパティ）**: ログインリンク・Discordの承認リンクに載せるWebアプリのURL。`ScriptApp.getService().getUrl()`は実際には開けないURLや、Workspaceドメイン限定の`/a/macros/<ドメイン>/`形式のURLを返すことが報告されており、社外の人がリンクを開けない恐れがあるため、`getWebAppUrl_()`はこのプロパティを優先する（未設定時は`getUrl()`の`/a/macros/<ドメイン>/`を`/macros/`に直して使う）。値は「デプロイを管理」に表示される`https://script.google.com/macros/s/〜/exec`形式のURL。`checkConfig()`で形式を確認できる
 
+### google.script.runで呼べる関数（重要・セキュリティ）
+Webアプリは`executeAs: USER_DEPLOYING`／`access: ANYONE_ANONYMOUS`でデプロイしているため、承認画面・管理者画面（ログイン不要の「アクセス権がありません」画面を含む）などHtmlServiceのページを開いた人なら誰でも、ブラウザの開発者ツールから`google.script.run.<関数名>()`で**名前の末尾が`_`でないすべてのトップレベル関数**を呼び出せ、スクリプト所有者の権限で実行される。トップレベル関数を追加するときは、必ず次のどれに当たるかを決めること。
+
+- 内部ヘルパー → 名前の末尾を`_`にする（google.script.runからは呼べなくなるが、GASエディタの関数選択プルダウンにも表示されなくなる）
+- 画面から呼ぶ公開API → 誰に呼ばれても安全に作る。操作系は`isAuthorizedAdmin_(sessionToken)`で保護する（`approveReservation`は承認リンクを知っていれば承認できる仕様、`requestAdminLoginLink`/`logoutAdminSession`はログイン画面用のため、例外的に管理者判定なし）
+- GASエディタから手動実行する保守・診断用の関数（`checkConfig`、`createDailyTrigger`、`fixPhoneNumberLeadingZeros`、`debugLine*`など） → 先頭で`assertEditorRun_('関数名')`を呼ぶ
+- トリガーのハンドラー（`sendReminders`、`archiveOldReservations`） → 先頭で`assertEditorOrTriggerRun_(e, '関数名')`を呼ぶ（エディタからの手動実行も可能）
+
+ガードの仕組み（`Code.js`）: Webアプリ経由では`Session.getEffectiveUser()`が常にスクリプト所有者、`Session.getActiveUser()`が訪問者（匿名・社外なら空文字）になる。エディタからの実行では両者とも実行した本人で一致するため、一致しない場合は拒否する。トリガー実行時は`getActiveUser()`が取れる保証がないため、イベントオブジェクトの`triggerUid`が、このプロジェクトに登録済みで同じハンドラー名を持つトリガーのID（`Trigger.getUniqueId()`）と一致すれば許可する。ガードは拒否時に例外を投げるので、万一トリガー実行が拒否された場合もGASのトリガー失敗通知メールで気付ける。
+
 ### CORSの注意点（重要）
 GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フロントから`Content-Type: application/json`でPOSTするとプリフライトで失敗するので、`Content-Type: text/plain;charset=utf-8`でJSON文字列を送り、GAS側は`JSON.parse(e.postData.contents)`で受け取ってください。
 
@@ -111,3 +121,4 @@ TASKS.mdのPhase順に、1フェーズずつ実装→動作確認→次フェー
 ### その他、確認が取れていない項目
 - XSS修正（PR #30）の再テスト結果（管理者画面で`<img src=x onerror=...>`が実行されずテキスト表示になるか）
 - `docs/test-checklist.md`の全項目の実施状況
+- 保守・診断用関数へのガード追加（`assertEditorRun_`/`assertEditorOrTriggerRun_`）後、実機での確認（`docs/test-checklist.md`の「6. セキュリティ」「4. 前日リマインド」）。特に、`clasp push`＋デプロイ後の最初の朝9時の`sendReminders`トリガー実行が、GASの「実行数」画面で失敗になっていないか（トリガー経由の判定はtriggerUidの照合に頼っており、実機では未検証のため）。既存のトリガーはハンドラー名を変えていないので再登録は不要

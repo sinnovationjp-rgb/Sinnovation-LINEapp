@@ -22,10 +22,12 @@ doGet/doPostは公開URLを1つしか持てないため、クエリパラメー�
 
 ### 管理者画面（AdminPage.html）
 - 予約一覧・ステータス別フィルタ・検索・詳細パネルからの承認/却下/キャンセル操作ができるスタッフ向け画面
-- 権限は2段階（`admin`=管理者／`viewer`=閲覧者）。`getUserRole_()`が`Session.getActiveUser().getEmail()`を取得し、スクリプトプロパティ`ADMIN_EMAILS`（管理者）・`VIEWER_EMAILS`（閲覧者、いずれもカンマ区切りのメールアドレス一覧）と照合する。`isAuthorizedAdmin_()`は`admin`ロールのみtrueを返し、承認/却下/キャンセル・ユーザー管理などの操作系関数はすべてこれで保護する。閲覧者は一覧の閲覧のみで、画面上のボタンも表示されない（サーバー側でも操作は拒否される）。未許可・匿名アクセスの場合は一覧データを含まない「アクセス権がありません」画面を返す
+- 権限は2段階（`admin`=管理者／`viewer`=閲覧者）。`getUserRole_(sessionToken)`が利用者のメールアドレスを特定し、スクリプトプロパティ`ADMIN_EMAILS`（管理者）・`VIEWER_EMAILS`（閲覧者、いずれもカンマ区切りのメールアドレス一覧）と照合する。`isAuthorizedAdmin_(sessionToken)`は`admin`ロールのみtrueを返し、却下/キャンセル・ユーザー管理などの操作系関数はすべてこれで保護する（各関数は最後の引数で`sessionToken`を受け取る）。閲覧者は一覧の閲覧のみで、画面上のボタンも表示されない（サーバー側でも操作は拒否される）。権限がない場合は一覧データを含まないログイン画面（AdminLoginPage.html）を返す
 - 管理者・閲覧者の追加/削除/権限変更は、管理者画面右上の「ユーザーを管理」から行う（Googleドライブの共有ダイアログに似たUI）。`getAllUsers`/`addUser`/`removeUser`/`setUserRole`（すべて`isAuthorizedAdmin_()`で保護）がADMIN_EMAILS/VIEWER_EMAILSを読み書きする。管理者が0人になる操作（削除・閲覧者への降格）は拒否し、ロックアウトを防ぐ
-- 既存の1つのWebアプリデプロイ（アクセス可能ユーザー設定は「全員」）で予約用・管理者用の両方を兼用できる。実機確認の結果、匿名のLINEユーザーには`Session.getActiveUser()`が空になり予約機能に影響しない一方、スクリプト所有ドメイン（sinnovation.jp）にログイン済みのスタッフがアクセスした場合は同関数でメールアドレスが取得できるため、`ADMIN_EMAILS`/`VIEWER_EMAILS`との照合だけで管理者画面のアクセス制御が成立する。別デプロイは不要
-- **【重要・GASの制約】Gmail等の社外アカウントを管理者/閲覧者にする場合の注意**: 上記の`Session.getActiveUser()`挙動は、sinnovation.jpドメイン内のアカウントではWorkspaceの設定により暗黙的に機能するが、個人のGmail等の社外アカウントでは**そのGASプロジェクト自体への閲覧権限が明示的に共有されていないとメールアドレスを取得できず**、`ADMIN_EMAILS`/`VIEWER_EMAILS`に登録済みでも「アクセス権がありません」になる（2026-10-05に実機で確認）。対応: 「ユーザーを管理」での登録に加えて、GASプロジェクトのオーナー（川合さん）がGASエディタの共有機能（またはGoogleドライブ上のプロジェクトファイル）から、対象のGmailアドレスを「閲覧者」としてプロジェクトに共有する必要がある。AdminPage.htmlの「ユーザーを管理」モーダルにもこの注意書きを表示している
+- 本人確認は2通り。既存の1つのWebアプリデプロイ（「自分として実行」「全員（匿名を含む）」）で予約用・管理者用を兼用し、別デプロイは不要
+  1. **sinnovation.jpのアカウント**: `Session.getActiveUser().getEmail()`でメールアドレスが取れるので、Googleにログインしていればそのまま開ける
+  2. **Gmail等の社外アカウント**: 「自分として実行」のWebアプリでは、`Session.getActiveUser()`はスクリプト所有者と同じWorkspaceドメインのユーザーにしかメールアドレスを返さない（Googleの公式仕様。GASプロジェクトを共有しても変わらないことを2026-10-05に実機で確認済み）。そのため管理画面を開くとログイン画面が表示され、登録済みのアドレスを入力すると`requestAdminLoginLink()`がログイン用リンク（`?page=admin&session=<64桁のトークン>`）をメールで送る。トークンはスクリプトプロパティ`LOGIN_SESSION_<トークン>`に`{email, expiresAt}`として7日間保存され、画面からの操作のたびに`sessionToken`として送られる。権限は毎回ADMIN_EMAILS/VIEWER_EMAILSと照合し直すので、登録を削除すればトークンも即座に無効になる。未登録アドレスにはメールを送らないが応答は同じ（登録有無を推測させない）、同じアドレスへの送信は1分に1回まで。ログアウトボタン（`logoutAdminSession`）でトークンを削除できる。期限切れのセッションは新しいリンク発行時に掃除される
+- **`WEB_APP_URL`（スクリプトプロパティ）**: ログインリンク・Discordの承認リンクに載せるWebアプリのURL。`ScriptApp.getService().getUrl()`は実際には開けないURLや、Workspaceドメイン限定の`/a/macros/<ドメイン>/`形式のURLを返すことが報告されており、社外の人がリンクを開けない恐れがあるため、`getWebAppUrl_()`はこのプロパティを優先する（未設定時は`getUrl()`の`/a/macros/<ドメイン>/`を`/macros/`に直して使う）。値は「デプロイを管理」に表示される`https://script.google.com/macros/s/〜/exec`形式のURL。`checkConfig()`で形式を確認できる
 
 ### CORSの注意点（重要）
 GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フロントから`Content-Type: application/json`でPOSTするとプリフライトで失敗するので、`Content-Type: text/plain;charset=utf-8`でJSON文字列を送り、GAS側は`JSON.parse(e.postData.contents)`で受け取ってください。
@@ -37,7 +39,7 @@ GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フ
 予約一覧シートの行数肥大化によるパフォーマンス低下を防ぐため、180日以上前の確定済み/キャンセル済みデータ（仮予約は対象外）を`予約一覧_archive`シートへ毎月1日に自動退避する。リマインドトリガーと同様、`createArchiveTrigger()`をGASエディタで初回のみ手動実行してトリガー登録が必要。
 
 ## シークレット管理
-GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートID、カレンダーID（`CALENDAR_ID`）、管理者画面の許可メールアドレス一覧（`ADMIN_EMAILS`）は必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
+GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートID、カレンダーID（`CALENDAR_ID`）、管理者画面の許可メールアドレス一覧（`ADMIN_EMAILS`）、WebアプリのURL（`WEB_APP_URL`）は必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
 
 ### LINEチャネルアクセストークンの2つの登録方法
 `LineService.getAccessToken_()`は以下の優先順位でトークンを取得する。

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@700;900&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --surface: #ffffff;
+    --border: #e6e0d4;
+    --text: #211d17;
+    --text-muted: #857b68;
+    --accent: #b6763a;
+    --accent-strong: #96602c;
+    --accent-soft: #f4e6d3;
+    --danger: #b3412f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px 16px;
+  }
+  .card {
+    width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 32px 28px; box-shadow: 0 10px 30px rgba(33,29,23,0.06);
+  }
+  .mark { font-family: "Zen Kaku Gothic New", sans-serif; font-weight: 900; font-size: 15px; color: var(--accent); }
+  h1 { font-family: "Zen Kaku Gothic New", sans-serif; font-size: 22px; margin: 6px 0 8px; }
+  p { font-size: 13px; line-height: 1.7; color: var(--text-muted); margin: 0 0 20px; }
+  .notice {
+    background: var(--accent-soft); color: var(--accent-strong); border-radius: 10px;
+    padding: 10px 12px; font-size: 12px; font-weight: 600; margin-bottom: 16px; line-height: 1.6;
+  }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+  input {
+    width: 100%; font: inherit; font-size: 15px; color: var(--text); padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 10px; outline: none;
+  }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(182,118,58,0.16); }
+  button {
+    width: 100%; margin-top: 14px; padding: 13px; border: none; border-radius: 12px;
+    background: var(--accent); color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  button:hover { background: var(--accent-strong); }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .error { color: var(--danger); font-size: 13px; margin-top: 12px; min-height: 1em; }
+  .done { display: none; text-align: center; }
+  .done h1 { font-size: 19px; }
+  .done p { margin: 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="form-view">
+    <div class="mark">oO SPACE</div>
+    <h1>予約管理にログイン</h1>
+    <p>「ユーザーを管理」に登録されているメールアドレスを入力してください。ログイン用のリンクをメールでお送りします。</p>
+    <? if (sessionExpired) { ?>
+      <div class="notice">ログインの有効期限が切れたか、リンクが無効になっています。もう一度ログインしてください。</div>
+    <? } ?>
+    <form id="login-form" novalidate>
+      <label for="email">メールアドレス</label>
+      <input type="email" id="email" autocomplete="email" placeholder="example@gmail.com" required>
+      <button type="submit" id="submit-btn">ログインリンクを送信</button>
+      <div class="error" id="error"></div>
+    </form>
+  </div>
+  <div class="done" id="done-view">
+    <div class="mark">oO SPACE</div>
+    <h1>メールを確認してください</h1>
+    <p id="done-message"></p>
+  </div>
+</div>
+<script>
+  document.getElementById('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = document.getElementById('email').value.trim();
+    var errorEl = document.getElementById('error');
+    var btn = document.getElementById('submit-btn');
+    errorEl.textContent = '';
+    if (!email) {
+      errorEl.textContent = 'メールアドレスを入力してください';
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '送信中…';
+    google.script.run.withSuccessHandler(function (res) {
+      if (!res.success) {
+        errorEl.textContent = res.error;
+        btn.disabled = false;
+        btn.textContent = 'ログインリンクを送信';
+        return;
+      }
+      document.getElementById('done-message').textContent = res.message;
+      document.getElementById('form-view').style.display = 'none';
+      document.getElementById('done-view').style.display = 'block';
+    }).withFailureHandler(function (err) {
+      // 1つのブラウザで複数のGoogleアカウントにログインしていると、GASの通信が失敗することがある
+      errorEl.textContent = (err && err.message ? err.message : String(err)) +
+        '（うまくいかない場合は、シークレットウィンドウでこのページを開き直してください）';
+      btn.disabled = false;
+      btn.textContent = 'ログインリンクを送信';
+    }).requestAdminLoginLink(email);
+  });
+</script>
+</body>
+</html>

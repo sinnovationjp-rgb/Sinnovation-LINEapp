@@ -3,7 +3,7 @@ function doGet(e) {
     return renderApprovalPage_(e.parameter.id);
   }
   if (e.parameter && e.parameter.page === 'admin') {
-    return renderAdminPage_();
+    return renderAdminPage_(e.parameter.session);
   }
   const availability = SheetService.getAvailability(30);
   return jsonResponse_(availability);
@@ -42,7 +42,7 @@ function doPost(e) {
 
   try {
     const id = withReservationLock_(() => SheetService.addProvisionalReservation(data));
-    const approvalUrl = ScriptApp.getService().getUrl() + '?page=approval&id=' + id;
+    const approvalUrl = getWebAppUrl_() + '?page=approval&id=' + id;
     NotifyService.send(buildProvisionalMessage_(id, data, approvalUrl));
     sendEmail_(data.email, '【oO SPACE】ご予約を受け付けました', buildProvisionalEmailBody_(data));
     if (data.userId) {
@@ -156,21 +156,30 @@ function renderApprovalPage_(id) {
 
 // 管理者アカウントのみアクセス許可（スクリプトプロパティADMIN_EMAILSに登録されたメールアドレスの一覧と照合）
 // 承認・却下・キャンセル・ユーザー管理など「操作」を伴う機能はすべてこれで判定する
-function isAuthorizedAdmin_() {
-  return getUserRole_() === 'admin';
+function isAuthorizedAdmin_(sessionToken) {
+  return getUserRole_(sessionToken) === 'admin';
 }
 
 // 画面を閲覧できるか（管理者 or 閲覧者）。操作の可否は別途isAuthorizedAdmin_()で判定する
-function isAuthorizedViewer_() {
-  return getUserRole_() !== null;
+function isAuthorizedViewer_(sessionToken) {
+  return getUserRole_(sessionToken) !== null;
 }
 
-// 現在ログインしているアカウントの権限（'admin' | 'viewer' | null）を返す
-function getUserRole_() {
-  const email = (Session.getActiveUser().getEmail() || '').toLowerCase();
-  if (!email) return null;
-  if (getAdminEmailList_().some((e) => e.toLowerCase() === email)) return 'admin';
-  if (getViewerEmailList_().some((e) => e.toLowerCase() === email)) return 'viewer';
+// 現在の利用者の権限（'admin' | 'viewer' | null）を返す。
+// 「自分として実行」のWebアプリでは、Session.getActiveUser()はスクリプト所有者と同じWorkspaceドメイン
+// （sinnovation.jp）のユーザーにしかメールアドレスを返さない（Googleの仕様）。そのためGmail等の社外アカウントは、
+// メールで受け取ったログインリンクのセッショントークンで本人確認する
+function getUserRole_(sessionToken) {
+  const googleRole = getRoleForEmail_(Session.getActiveUser().getEmail());
+  if (googleRole) return googleRole;
+  return getRoleForEmail_(getSessionEmail_(sessionToken));
+}
+
+function getRoleForEmail_(email) {
+  const lower = String(email || '').trim().toLowerCase();
+  if (!lower) return null;
+  if (getAdminEmailList_().some((e) => e.toLowerCase() === lower)) return 'admin';
+  if (getViewerEmailList_().some((e) => e.toLowerCase() === lower)) return 'viewer';
   return null;
 }
 
@@ -211,6 +220,114 @@ function assertEditorOrTriggerRun_(e, functionName) {
   }
 }
 
+const LOGIN_SESSION_PREFIX = 'LOGIN_SESSION_';
+const LOGIN_SESSION_DAYS = 7;
+
+// セッショントークンに紐づくメールアドレスを返す（無効・期限切れならnull）
+function getSessionEmail_(sessionToken) {
+  if (!isValidSessionTokenFormat_(sessionToken)) return null;
+  const props = PropertiesService.getScriptProperties();
+  const raw = props.getProperty(LOGIN_SESSION_PREFIX + sessionToken);
+  if (!raw) return null;
+  try {
+    const session = JSON.parse(raw);
+    if (!session.expiresAt || session.expiresAt < Date.now()) {
+      props.deleteProperty(LOGIN_SESSION_PREFIX + sessionToken);
+      return null;
+    }
+    return session.email || null;
+  } catch (err) {
+    console.error('getSessionEmail_: セッション情報の読み取りに失敗しました', err);
+    return null;
+  }
+}
+
+function isValidSessionTokenFormat_(token) {
+  return typeof token === 'string' && /^[a-f0-9]{64}$/.test(token);
+}
+
+function deleteExpiredSessions_(props) {
+  const now = Date.now();
+  props.getKeys().forEach((key) => {
+    if (key.indexOf(LOGIN_SESSION_PREFIX) !== 0) return;
+    try {
+      const session = JSON.parse(props.getProperty(key));
+      if (!session.expiresAt || session.expiresAt < now) props.deleteProperty(key);
+    } catch (err) {
+      props.deleteProperty(key);
+    }
+  });
+}
+
+// ログイン画面から呼ばれる。登録済みのメールアドレスであれば、ログイン用リンクをそのアドレスへ送る。
+// 登録の有無が外部から判別できないよう、未登録でも同じ応答を返す
+function requestAdminLoginLink(email) {
+  const genericResponse = { success: true, message: '登録済みのメールアドレスであれば、ログイン用のリンクを送信しました。メールをご確認ください。' };
+  try {
+    const trimmed = String(email || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      return { success: false, error: '正しいメールアドレスを入力してください' };
+    }
+    const lower = trimmed.toLowerCase();
+    if (!getRoleForEmail_(lower)) {
+      console.warn(`requestAdminLoginLink: 未登録のメールアドレスからのログイン要求（${lower}）`);
+      return genericResponse;
+    }
+
+    // 連打やいたずらによるメール大量送信を防ぐため、同じアドレスへの送信は1分に1回まで
+    const cache = CacheService.getScriptCache();
+    const throttleKey = 'LOGIN_LINK_SENT_' + lower;
+    if (cache.get(throttleKey)) {
+      return genericResponse;
+    }
+
+    const props = PropertiesService.getScriptProperties();
+    deleteExpiredSessions_(props);
+    const token = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '').toLowerCase();
+    const expiresAt = Date.now() + LOGIN_SESSION_DAYS * 24 * 60 * 60 * 1000;
+    props.setProperty(LOGIN_SESSION_PREFIX + token, JSON.stringify({ email: lower, expiresAt: expiresAt }));
+
+    const loginUrl = getWebAppUrl_() + '?page=admin&session=' + token;
+    checkEmailQuota_();
+    MailApp.sendEmail({
+      to: trimmed,
+      subject: '【oO SPACE】予約管理画面へのログインリンク',
+      body: [
+        '予約管理画面へのログインリンクです。下記のURLを開いてください。',
+        '',
+        loginUrl,
+        '',
+        `このリンクは${LOGIN_SESSION_DAYS}日間有効です。他の人には共有しないでください。`,
+        'このメールに心当たりがない場合は、破棄してください。'
+      ].join('\n'),
+      name: 'oO SPACE'
+    });
+    cache.put(throttleKey, '1', 60);
+    return genericResponse;
+  } catch (err) {
+    console.error('requestAdminLoginLink failed', err);
+    return { success: false, error: 'ログインリンクの送信に失敗しました。時間をおいて再度お試しください。' };
+  }
+}
+
+// メールやDiscordに載せるWebアプリのURL。ScriptApp.getService().getUrl()は、実際には開けないURLや
+// Workspaceドメイン限定の /a/macros/<ドメイン>/ 形式のURLを返すことがあり、社外の人が開けない恐れがあるため、
+// 実際に社外アカウントで開けることを確認したURLをスクリプトプロパティWEB_APP_URLに設定して使う
+const WEB_APP_URL_PATTERN = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/;
+
+function getWebAppUrl_() {
+  const configured = (PropertiesService.getScriptProperties().getProperty('WEB_APP_URL') || '').trim().split('?')[0];
+  if (configured) return configured;
+  return (ScriptApp.getService().getUrl() || '').replace(/\/a\/macros\/[^/]+\//, '/macros/');
+}
+
+function logoutAdminSession(sessionToken) {
+  if (isValidSessionTokenFormat_(sessionToken)) {
+    PropertiesService.getScriptProperties().deleteProperty(LOGIN_SESSION_PREFIX + sessionToken);
+  }
+  return { success: true };
+}
+
 function getAdminEmailList_() {
   return (PropertiesService.getScriptProperties().getProperty('ADMIN_EMAILS') || '')
     .split(',')
@@ -232,17 +349,17 @@ function getAllUsersList_() {
 }
 
 // 管理者画面から、現在登録されている管理者・閲覧者の一覧を取得する（管理者のみ）
-function getAllUsers() {
-  if (!isAuthorizedAdmin_()) {
+function getAllUsers(sessionToken) {
+  if (!isAuthorizedAdmin_(sessionToken)) {
     return { success: false, error: 'アクセス権がありません' };
   }
   return { success: true, users: getAllUsersList_() };
 }
 
 // 管理者画面から、新しいユーザー（管理者 or 閲覧者）を追加する（管理者のみ）
-function addUser(email, role) {
+function addUser(email, role, sessionToken) {
   try {
-    if (!isAuthorizedAdmin_()) {
+    if (!isAuthorizedAdmin_(sessionToken)) {
       throw new Error('アクセス権がありません');
     }
     if (role !== 'admin' && role !== 'viewer') {
@@ -275,9 +392,9 @@ function addUser(email, role) {
 }
 
 // 管理者画面から、ユーザーを削除する（管理者が0人になる操作は拒否する）（管理者のみ）
-function removeUser(email) {
+function removeUser(email, sessionToken) {
   try {
-    if (!isAuthorizedAdmin_()) {
+    if (!isAuthorizedAdmin_(sessionToken)) {
       throw new Error('アクセス権がありません');
     }
     const target = String(email || '').trim().toLowerCase();
@@ -307,9 +424,9 @@ function removeUser(email) {
 }
 
 // 管理者画面から、既存ユーザーの権限（管理者⇔閲覧者）を切り替える（管理者のみ）
-function setUserRole(email, role) {
+function setUserRole(email, role, sessionToken) {
   try {
-    if (!isAuthorizedAdmin_()) {
+    if (!isAuthorizedAdmin_(sessionToken)) {
       throw new Error('アクセス権がありません');
     }
     if (role !== 'admin' && role !== 'viewer') {
@@ -349,41 +466,25 @@ function setUserRole(email, role) {
   }
 }
 
-function renderAdminPage_() {
-  const role = getUserRole_();
+function renderAdminPage_(sessionToken) {
+  const role = getUserRole_(sessionToken);
   if (!role) {
-    const detectedEmail = Session.getActiveUser().getEmail() || '';
-    return HtmlService.createHtmlOutput(
-      '<div style="font-family:sans-serif;text-align:center;padding:80px 20px;color:#211d17;">' +
-      '<h1>アクセス権がありません</h1>' +
-      '<p>この画面は管理者・閲覧者として登録されたアカウントでログインした場合のみ利用できます。</p>' +
-      '<p style="color:#857b68;font-size:0.9rem;">' +
-      (detectedEmail
-        ? `ログイン中のアカウント: ${escapeHtmlServer_(detectedEmail)}<br>このアドレスが「ユーザーを管理」に登録したものと一致しているか確認してください。`
-        : 'ログイン中のアカウントを検出できませんでした。Googleアカウントにログインした状態でこの画面を開いているか確認してください。') +
-      '</p>' +
-      '</div>'
-    ).setTitle('アクセス権がありません');
+    const login = HtmlService.createTemplateFromFile('AdminLoginPage');
+    login.sessionExpired = Boolean(sessionToken);
+    return login.evaluate().setTitle('予約管理 ログイン');
   }
+  // Googleアカウントで認証できた場合（sinnovation.jpのスタッフ）はトークン不要なので画面に渡さない
+  const googleRole = getRoleForEmail_(Session.getActiveUser().getEmail());
   const template = HtmlService.createTemplateFromFile('AdminPage');
   template.reservations = SheetService.getAllReservations();
   template.role = role;
+  template.sessionToken = googleRole ? null : sessionToken;
   return template.evaluate().setTitle('予約管理');
 }
 
-// renderAdminPage_のエラー画面用（HtmlOutputに直接文字列結合するため、簡易的なエスケープを用意する）
-function escapeHtmlServer_(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function cancelReservation(id) {
+function cancelReservation(id, sessionToken) {
   try {
-    if (!isAuthorizedAdmin_()) {
+    if (!isAuthorizedAdmin_(sessionToken)) {
       throw new Error('アクセス権がありません');
     }
     if (!id) {
@@ -601,6 +702,15 @@ function checkConfig() {
 
   const adminEmails = props.getProperty('ADMIN_EMAILS');
   report('ADMIN_EMAILS', !!adminEmails, adminEmails || '（未設定だと管理者画面に誰も入れず、通知失敗時のフォールバックメールも届きません）');
+
+  const webAppUrl = (props.getProperty('WEB_APP_URL') || '').trim().split('?')[0];
+  if (!webAppUrl) {
+    report('WEB_APP_URL', false, `未設定（代わりに ${getWebAppUrl_()} を使います。社外の人がログインリンク・承認リンクを開けない恐れがあるため、デプロイを管理画面に表示される「ウェブアプリ」のURLを設定してください）`);
+  } else {
+    report('WEB_APP_URL', WEB_APP_URL_PATTERN.test(webAppUrl), WEB_APP_URL_PATTERN.test(webAppUrl)
+      ? webAppUrl
+      : `${webAppUrl}（https://script.google.com/macros/s/〜/exec の形式ではありません。/a/macros/〜 や /dev のURLは社外の人が開けません）`);
+  }
 
   const lineToken = props.getProperty('LINE_CHANNEL_ACCESS_TOKEN');
   const lineId = props.getProperty('LINE_CHANNEL_ID');

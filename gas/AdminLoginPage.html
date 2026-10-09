@@ -100,7 +100,9 @@
       document.getElementById('form-view').style.display = 'none';
       document.getElementById('done-view').style.display = 'block';
     }).withFailureHandler(function (err) {
-      errorEl.textContent = err && err.message ? err.message : String(err);
+      // 1つのブラウザで複数のGoogleアカウントにログインしていると、GASの通信が失敗することがある
+      errorEl.textContent = (err && err.message ? err.message : String(err)) +
+        '（うまくいかない場合は、シークレットウィンドウでこのページを開き直してください）';
       btn.disabled = false;
       btn.textContent = 'ログインリンクを送信';
     }).requestAdminLoginLink(email);

@@ -42,7 +42,7 @@ function doPost(e) {
 
   try {
     const id = withReservationLock_(() => SheetService.addProvisionalReservation(data));
-    const approvalUrl = ScriptApp.getService().getUrl() + '?page=approval&id=' + id;
+    const approvalUrl = getWebAppUrl_() + '?page=approval&id=' + id;
     NotifyService.send(buildProvisionalMessage_(id, data, approvalUrl));
     sendEmail_(data.email, '【oO SPACE】ご予約を受け付けました', buildProvisionalEmailBody_(data));
     if (data.userId) {
@@ -250,7 +250,7 @@ function requestAdminLoginLink(email) {
     const expiresAt = Date.now() + LOGIN_SESSION_DAYS * 24 * 60 * 60 * 1000;
     props.setProperty(LOGIN_SESSION_PREFIX + token, JSON.stringify({ email: lower, expiresAt: expiresAt }));
 
-    const loginUrl = ScriptApp.getService().getUrl() + '?page=admin&session=' + token;
+    const loginUrl = getWebAppUrl_() + '?page=admin&session=' + token;
     checkEmailQuota_();
     MailApp.sendEmail({
       to: trimmed,
@@ -271,6 +271,17 @@ function requestAdminLoginLink(email) {
     console.error('requestAdminLoginLink failed', err);
     return { success: false, error: 'ログインリンクの送信に失敗しました。時間をおいて再度お試しください。' };
   }
+}
+
+// メールやDiscordに載せるWebアプリのURL。ScriptApp.getService().getUrl()は、実際には開けないURLや
+// Workspaceドメイン限定の /a/macros/<ドメイン>/ 形式のURLを返すことがあり、社外の人が開けない恐れがあるため、
+// 実際に社外アカウントで開けることを確認したURLをスクリプトプロパティWEB_APP_URLに設定して使う
+const WEB_APP_URL_PATTERN = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/;
+
+function getWebAppUrl_() {
+  const configured = (PropertiesService.getScriptProperties().getProperty('WEB_APP_URL') || '').trim().split('?')[0];
+  if (configured) return configured;
+  return (ScriptApp.getService().getUrl() || '').replace(/\/a\/macros\/[^/]+\//, '/macros/');
 }
 
 function logoutAdminSession(sessionToken) {
@@ -652,6 +663,15 @@ function checkConfig() {
 
   const adminEmails = props.getProperty('ADMIN_EMAILS');
   report('ADMIN_EMAILS', !!adminEmails, adminEmails || '（未設定だと管理者画面に誰も入れず、通知失敗時のフォールバックメールも届きません）');
+
+  const webAppUrl = (props.getProperty('WEB_APP_URL') || '').trim().split('?')[0];
+  if (!webAppUrl) {
+    report('WEB_APP_URL', false, `未設定（代わりに ${getWebAppUrl_()} を使います。社外の人がログインリンク・承認リンクを開けない恐れがあるため、デプロイを管理画面に表示される「ウェブアプリ」のURLを設定してください）`);
+  } else {
+    report('WEB_APP_URL', WEB_APP_URL_PATTERN.test(webAppUrl), WEB_APP_URL_PATTERN.test(webAppUrl)
+      ? webAppUrl
+      : `${webAppUrl}（https://script.google.com/macros/s/〜/exec の形式ではありません。/a/macros/〜 や /dev のURLは社外の人が開けません）`);
+  }
 
   const lineToken = props.getProperty('LINE_CHANNEL_ACCESS_TOKEN');
   const lineId = props.getProperty('LINE_CHANNEL_ID');

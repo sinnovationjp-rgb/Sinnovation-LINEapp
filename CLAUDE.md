@@ -27,6 +27,7 @@ doGet/doPostは公開URLを1つしか持てないため、クエリパラメー�
 - 本人確認は2通り。既存の1つのWebアプリデプロイ（「自分として実行」「全員（匿名を含む）」）で予約用・管理者用を兼用し、別デプロイは不要
   1. **sinnovation.jpのアカウント**: `Session.getActiveUser().getEmail()`でメールアドレスが取れるので、Googleにログインしていればそのまま開ける
   2. **Gmail等の社外アカウント**: 「自分として実行」のWebアプリでは、`Session.getActiveUser()`はスクリプト所有者と同じWorkspaceドメインのユーザーにしかメールアドレスを返さない（Googleの公式仕様。GASプロジェクトを共有しても変わらないことを2026-10-05に実機で確認済み）。そのため管理画面を開くとログイン画面が表示され、登録済みのアドレスを入力すると`requestAdminLoginLink()`がログイン用リンク（`?page=admin&session=<64桁のトークン>`）をメールで送る。トークンはスクリプトプロパティ`LOGIN_SESSION_<トークン>`に`{email, expiresAt}`として7日間保存され、画面からの操作のたびに`sessionToken`として送られる。権限は毎回ADMIN_EMAILS/VIEWER_EMAILSと照合し直すので、登録を削除すればトークンも即座に無効になる。未登録アドレスにはメールを送らないが応答は同じ（登録有無を推測させない）、同じアドレスへの送信は1分に1回まで。ログアウトボタン（`logoutAdminSession`）でトークンを削除できる。期限切れのセッションは新しいリンク発行時に掃除される
+- **`WEB_APP_URL`（スクリプトプロパティ）**: ログインリンク・Discordの承認リンクに載せるWebアプリのURL。`ScriptApp.getService().getUrl()`は実際には開けないURLや、Workspaceドメイン限定の`/a/macros/<ドメイン>/`形式のURLを返すことが報告されており、社外の人がリンクを開けない恐れがあるため、`getWebAppUrl_()`はこのプロパティを優先する（未設定時は`getUrl()`の`/a/macros/<ドメイン>/`を`/macros/`に直して使う）。値は「デプロイを管理」に表示される`https://script.google.com/macros/s/〜/exec`形式のURL。`checkConfig()`で形式を確認できる
 
 ### CORSの注意点（重要）
 GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フロントから`Content-Type: application/json`でPOSTするとプリフライトで失敗するので、`Content-Type: text/plain;charset=utf-8`でJSON文字列を送り、GAS側は`JSON.parse(e.postData.contents)`で受け取ってください。
@@ -38,7 +39,7 @@ GASのWeb AppはOPTIONSプリフライトを正しく処理できません。フ
 予約一覧シートの行数肥大化によるパフォーマンス低下を防ぐため、180日以上前の確定済み/キャンセル済みデータ（仮予約は対象外）を`予約一覧_archive`シートへ毎月1日に自動退避する。リマインドトリガーと同様、`createArchiveTrigger()`をGASエディタで初回のみ手動実行してトリガー登録が必要。
 
 ## シークレット管理
-GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートID、カレンダーID（`CALENDAR_ID`）、管理者画面の許可メールアドレス一覧（`ADMIN_EMAILS`）は必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
+GASは`.env`を使えません。Webhook URL、LINEチャネルアクセストークン、スプレッドシートID、カレンダーID（`CALENDAR_ID`）、管理者画面の許可メールアドレス一覧（`ADMIN_EMAILS`）、WebアプリのURL（`WEB_APP_URL`）は必ず`PropertiesService.getScriptProperties()`経由で読み込み、ソースコードに直書きしないこと。値自体はGASエディタの「プロジェクトの設定 > スクリプトプロパティ」から手動登録します。
 
 ### LINEチャネルアクセストークンの2つの登録方法
 `LineService.getAccessToken_()`は以下の優先順位でトークンを取得する。

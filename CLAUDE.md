@@ -23,6 +23,7 @@ doGet/doPostは公開URLを1つしか持てないため、クエリパラメー�
 ### 管理者画面（AdminPage.html）
 - 予約一覧・ステータス別フィルタ・検索・詳細パネルからの承認/却下/キャンセル操作ができるスタッフ向け画面
 - 権限は2段階（`admin`=管理者／`viewer`=閲覧者）。`getUserRole_(sessionToken)`が利用者のメールアドレスを特定し、スクリプトプロパティ`ADMIN_EMAILS`（管理者）・`VIEWER_EMAILS`（閲覧者、いずれもカンマ区切りのメールアドレス一覧）と照合する。`isAuthorizedAdmin_(sessionToken)`は`admin`ロールのみtrueを返し、却下/キャンセル・ユーザー管理などの操作系関数はすべてこれで保護する（各関数は最後の引数で`sessionToken`を受け取る）。閲覧者は一覧の閲覧のみで、画面上のボタンも表示されない（サーバー側でも操作は拒否される）。権限がない場合は一覧データを含まないログイン画面（AdminLoginPage.html）を返す
+- 電話・店頭・SNSなどで受けた予約は、管理者画面右上の「予約を追加」からスタッフが直接登録できる（管理者のみ、`createReservationByAdmin(data, sessionToken)`）。「確定」で登録すると`SheetService.addProvisionalReservation`で行を追加した後に`approveReservation`を呼び、承認と同じ処理（カレンダー登録・Discord通知・メールアドレスがあれば確定メール）を行う。「仮予約」で登録するとDiscordに「【管理画面から追加】」付きの承認リンクを通知するだけで、お客様への仮予約受付メールは送らない（文面が「LINEでご連絡します」のため）。LINE UserIdは空になるのでLINE通知は飛ばない
 - 管理者・閲覧者の追加/削除/権限変更は、管理者画面右上の「ユーザーを管理」から行う（Googleドライブの共有ダイアログに似たUI）。`getAllUsers`/`addUser`/`removeUser`/`setUserRole`（すべて`isAuthorizedAdmin_()`で保護）がADMIN_EMAILS/VIEWER_EMAILSを読み書きする。管理者が0人になる操作（削除・閲覧者への降格）は拒否し、ロックアウトを防ぐ
 - 本人確認は2通り。既存の1つのWebアプリデプロイ（「自分として実行」「全員（匿名を含む）」）で予約用・管理者用を兼用し、別デプロイは不要
   1. **sinnovation.jpのアカウント**: `Session.getActiveUser().getEmail()`でメールアドレスが取れるので、Googleにログインしていればそのまま開ける

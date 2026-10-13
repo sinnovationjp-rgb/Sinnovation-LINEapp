@@ -165,6 +165,32 @@
   .modal-error { font-size: 0.8rem; color: var(--danger); min-height: 1.1em; }
   .modal-foot { display: flex; justify-content: flex-end; padding: 10px 22px 20px; }
   .modal-foot .btn { flex: none; padding: 10px 20px; }
+  .admin-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .admin-btn.primary:hover { filter: brightness(0.95); }
+
+  .modal.wide { width: min(520px, calc(100% - 32px)); max-height: calc(100% - 32px); display: flex; flex-direction: column; }
+  .modal.wide .modal-body { overflow-y: auto; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .form-field label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
+  .form-field label .req { color: var(--danger); margin-left: 2px; }
+  .form-field input, .form-field select, .form-field textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 0.88rem;
+    color: var(--text); background: var(--surface); outline: none;
+  }
+  .form-field textarea { resize: vertical; min-height: 60px; }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--accent); }
+  .status-choice { display: flex; gap: 8px; }
+  .status-choice label {
+    flex: 1; display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 10px;
+    padding: 9px 11px; font-size: 0.85rem; font-weight: 600; color: var(--text); cursor: pointer;
+  }
+  .status-choice input { width: auto; flex: none; margin: 0; accent-color: var(--accent); }
+  .status-choice label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .form-hint { font-size: 0.75rem; color: var(--text-muted); margin: 0; line-height: 1.6; }
+  .modal-foot.split { gap: 10px; }
+  @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } }
 
   @media (max-width: 480px) {
     thead { display: none; }
@@ -187,6 +213,10 @@
       <h1>予約管理</h1>
     </div>
     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <button class="admin-btn primary" id="add-reservation-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+        予約を追加
+      </button>
       <button class="admin-btn" id="manage-admins-btn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
         ユーザーを管理
@@ -288,6 +318,48 @@
   </div>
   <div class="modal-foot">
     <button class="btn ghost" id="admin-modal-close">閉じる</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="add-modal-overlay"></div>
+<div class="modal wide" id="add-modal" aria-hidden="true">
+  <div class="modal-head"><h2>予約を追加</h2></div>
+  <form class="modal-body" id="add-form" novalidate>
+    <div class="form-field">
+      <label>ステータス</label>
+      <div class="status-choice">
+        <label><input type="radio" name="add-status" value="確定" checked>確定として登録</label>
+        <label><input type="radio" name="add-status" value="仮予約">仮予約として登録</label>
+      </div>
+      <p class="form-hint" id="add-status-hint"></p>
+    </div>
+    <div class="form-grid">
+      <div class="form-field"><label for="add-date">日付<span class="req">*</span></label><input type="date" id="add-date" required></div>
+      <div class="form-field"><label for="add-time">時刻<span class="req">*</span></label><input type="time" id="add-time" step="900" required></div>
+      <div class="form-field"><label for="add-headcount">人数<span class="req">*</span></label><input type="number" id="add-headcount" min="1" step="1" inputmode="numeric" required></div>
+      <div class="form-field"><label for="add-space">スペース</label>
+        <select id="add-space">
+          <option value="">未定</option>
+          <option value="スタンディング・スペース">スタンディング・スペース</option>
+          <option value="ラウンジ・スペース">ラウンジ・スペース</option>
+        </select>
+      </div>
+      <div class="form-field"><label for="add-drink">飲み放題</label>
+        <select id="add-drink"><option value="あり">あり</option><option value="なし">なし</option></select>
+      </div>
+      <div class="form-field"><label for="add-history">ご利用履歴</label>
+        <select id="add-history"><option value="初めて">初めて</option><option value="利用したことがある">利用したことがある</option></select>
+      </div>
+      <div class="form-field full"><label for="add-name">氏名（カタカナ）<span class="req">*</span></label><input type="text" id="add-name" autocomplete="off"></div>
+      <div class="form-field"><label for="add-phone">電話番号</label><input type="tel" id="add-phone" autocomplete="off"></div>
+      <div class="form-field"><label for="add-email">メールアドレス</label><input type="email" id="add-email" autocomplete="off"></div>
+      <div class="form-field full"><label for="add-note">備考</label><textarea id="add-note" rows="2" placeholder="例: 電話で受付、Instagram DM経由 など"></textarea></div>
+    </div>
+    <div class="modal-error" id="add-error"></div>
+  </form>
+  <div class="modal-foot split">
+    <button class="btn ghost" id="add-cancel-btn" type="button">閉じる</button>
+    <button class="btn primary" id="add-submit-btn" type="submit" form="add-form">登録する</button>
   </div>
 </div>
 
@@ -586,8 +658,10 @@
 
   if (myRole === 'admin') {
     document.getElementById('manage-admins-btn').addEventListener('click', openAdminModal);
+    document.getElementById('add-reservation-btn').addEventListener('click', openAddModal);
   } else {
     document.getElementById('manage-admins-btn').style.display = 'none';
+    document.getElementById('add-reservation-btn').style.display = 'none';
     document.getElementById('viewer-badge').style.display = 'inline-flex';
   }
   if (sessionToken) {
@@ -630,6 +704,96 @@
       e.preventDefault();
       document.getElementById('admin-add-btn').click();
     }
+  });
+
+  // ---- 管理画面からの予約追加（電話・店頭・SNSなどで受けた予約をスタッフが登録する） ----
+  var STATUS_HINTS = {
+    '確定': '承認と同じ扱いになり、Googleカレンダーに登録されます。メールアドレスを入力した場合は、お客様に確定メールが届きます。',
+    '仮予約': '一覧に仮予約として追加され、Discordに通知されます。お客様への連絡は送られません。'
+  };
+  function selectedAddStatus() {
+    return document.querySelector('input[name="add-status"]:checked').value;
+  }
+  function updateAddStatusHint() {
+    var status = selectedAddStatus();
+    document.getElementById('add-status-hint').textContent = STATUS_HINTS[status];
+    document.getElementById('add-submit-btn').textContent = status === '確定' ? '確定で登録する' : '仮予約で登録する';
+  }
+  function openAddModal() {
+    document.getElementById('add-form').reset();
+    document.getElementById('add-date').value = todayISO();
+    document.getElementById('add-error').textContent = '';
+    document.getElementById('add-submit-btn').disabled = false;
+    updateAddStatusHint();
+    document.getElementById('add-modal').classList.add('is-open');
+    document.getElementById('add-modal').setAttribute('aria-hidden', 'false');
+    document.getElementById('add-modal-overlay').classList.add('is-open');
+  }
+  function closeAddModal() {
+    document.getElementById('add-modal').classList.remove('is-open');
+    document.getElementById('add-modal').setAttribute('aria-hidden', 'true');
+    document.getElementById('add-modal-overlay').classList.remove('is-open');
+  }
+  function addReservationToList(reservation) {
+    reservations.push(reservation);
+    renderTabs();
+    renderStats();
+    renderTable();
+  }
+  document.querySelectorAll('input[name="add-status"]').forEach(function (el) {
+    el.addEventListener('change', updateAddStatusHint);
+  });
+  document.getElementById('add-cancel-btn').addEventListener('click', closeAddModal);
+  document.getElementById('add-modal-overlay').addEventListener('click', closeAddModal);
+  document.getElementById('add-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var errorEl = document.getElementById('add-error');
+    var date = document.getElementById('add-date').value;
+    var time = document.getElementById('add-time').value;
+    var headcount = document.getElementById('add-headcount').value;
+    var name = document.getElementById('add-name').value.trim();
+    if (!date || !time) { errorEl.textContent = '日付と時刻を入力してください'; return; }
+    if (!headcount || Number(headcount) < 1) { errorEl.textContent = '人数を入力してください'; return; }
+    if (!name) { errorEl.textContent = '氏名を入力してください'; return; }
+
+    var status = selectedAddStatus();
+    var data = {
+      status: status,
+      datetime: date + 'T' + time,
+      headcount: Number(headcount),
+      space: document.getElementById('add-space').value,
+      drink: document.getElementById('add-drink').value,
+      usageHistory: document.getElementById('add-history').value,
+      name: name,
+      phone: document.getElementById('add-phone').value.trim(),
+      email: document.getElementById('add-email').value.trim(),
+      note: document.getElementById('add-note').value.trim()
+    };
+    var submitBtn = document.getElementById('add-submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '登録中...';
+    errorEl.textContent = '';
+
+    google.script.run.withSuccessHandler(function (res) {
+      // 確定処理だけ失敗した場合も、仮予約としては登録済みなので一覧には反映する
+      if (res && res.reservation) addReservationToList(res.reservation);
+      if (!res || !res.success) {
+        if (res && res.reservation) {
+          closeAddModal();
+          alert(res.error);
+          return;
+        }
+        errorEl.textContent = res && res.error ? res.error : '登録に失敗しました';
+        submitBtn.disabled = false;
+        updateAddStatusHint();
+        return;
+      }
+      closeAddModal();
+    }).withFailureHandler(function (err) {
+      errorEl.textContent = err && err.message ? err.message : String(err);
+      submitBtn.disabled = false;
+      updateAddStatusHint();
+    }).createReservationByAdmin(data, sessionToken);
   });
 
   renderTabs();

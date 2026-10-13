@@ -543,6 +543,66 @@ function cancelReservation(id, sessionToken) {
   }
 }
 
+// 管理画面から、電話・店頭・SNSなどで受けた予約をスタッフが直接登録する（管理者のみ）。
+// 「確定」で登録した場合は承認と同じ処理（カレンダー登録・Discord通知・確定メール）をそのまま行う。
+// 「仮予約」の場合はDiscordにだけ通知する（仮予約受付メールは「LINEでご連絡します」という文面のため送らない）
+function createReservationByAdmin(data, sessionToken) {
+  try {
+    if (!isAuthorizedAdmin_(sessionToken)) {
+      throw new Error('アクセス権がありません');
+    }
+    const input = data || {};
+    const status = input.status === '仮予約' ? '仮予約' : '確定';
+    const datetime = String(input.datetime || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(datetime)) {
+      throw new Error('予約日時を正しく入力してください');
+    }
+    const headcount = Number(input.headcount);
+    if (!Number.isInteger(headcount) || headcount < 1) {
+      throw new Error('人数を正しく入力してください');
+    }
+    const name = String(input.name || '').trim();
+    if (!name) {
+      throw new Error('氏名を入力してください');
+    }
+    const email = String(input.email || '').trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error('メールアドレスの形式が正しくありません');
+    }
+
+    const reservationData = {
+      datetime: datetime.length === 16 ? datetime + ':00' : datetime,
+      headcount: headcount,
+      space: String(input.space || '').trim(),
+      drink: String(input.drink || '').trim(),
+      usageHistory: String(input.usageHistory || '').trim(),
+      name: name,
+      phone: String(input.phone || '').trim(),
+      email: email,
+      note: String(input.note || '').trim(),
+      userId: ''
+    };
+    const id = withReservationLock_(() => SheetService.addProvisionalReservation(reservationData));
+
+    let error = null;
+    if (status === '確定') {
+      const approveResult = approveReservation(id, {});
+      if (!approveResult.success) {
+        error = `予約は仮予約として登録されましたが、確定処理に失敗しました。一覧から「承認して確定」をやり直してください（${approveResult.error}）`;
+      }
+    } else {
+      NotifyService.send('【管理画面から追加】' + buildProvisionalMessage_(id, reservationData, getWebAppUrl_() + '?page=approval&id=' + id));
+    }
+
+    // google.script.runはDateオブジェクトを返せないため、JSONを経由して文字列に変換する
+    const reservation = JSON.parse(JSON.stringify(SheetService.getReservationById(id)));
+    return error ? { success: false, error: error, reservation: reservation } : { success: true, reservation: reservation };
+  } catch (err) {
+    console.error('createReservationByAdmin failed', err);
+    return { success: false, error: String(err.message || err) };
+  }
+}
+
 // 予約日時をお客様・スタッフ向けに分かりやすい表記に変換する（Dateオブジェクト・ISO文字列どちらにも対応）
 function formatDateTimeForDisplay_(value) {
   if (!value) return '';

@@ -9,6 +9,23 @@ function doGet(e) {
   return jsonResponse_(availability);
 }
 
+// スマホでは全角の「＠」「．」や英数字が入力されることがあるため、半角に揃えて前後の空白を除く
+function normalizeEmail_(value) {
+  return String(value || '')
+    .replace(/[！-～]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/\u3000/g, ' ')
+    .trim();
+}
+
+// 「@」の前は、docomo・auの古いアドレスにある「..」や「@」直前の「.」も実在するため緩めに許可し、
+// ドメインは「英数字とハイフンのラベル」を「.」でつないだ、英字2文字以上のTLDで終わる形に限る。
+// frontend/js/reserve-form.js にも同じ正規表現がある（変えるときは両方そろえる）
+const EMAIL_PATTERN = /^[A-Za-z0-9.!#$%&'*+\/=?^_`{|}~-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+
+function isValidEmail_(email) {
+  return EMAIL_PATTERN.test(String(email || ''));
+}
+
 // 予約データの読み取り→判定→書き込みが複数リクエストで同時に走ると、スプレッドシートの
 // 二重書き込みや、確定/キャンセル二重実行防止チェックがすり抜ける恐れがあるため、
 // 予約を変更する処理はスクリプト全体で排他制御する
@@ -38,6 +55,10 @@ function doPost(e) {
   if (!data.datetime || !data.name || !data.phone) {
     console.error('doPost: 必須項目が不足しています', data);
     return jsonResponse_({ success: false, error: '日時・氏名・電話番号は必須です' });
+  }
+  data.email = normalizeEmail_(data.email);
+  if (data.email && !isValidEmail_(data.email)) {
+    return jsonResponse_({ success: false, error: 'メールアドレスの形式が正しくありません' });
   }
 
   try {
@@ -87,6 +108,12 @@ function approveReservation(id, editedData) {
           safeEdits[key] = editedData[key];
         }
       });
+      if (Object.prototype.hasOwnProperty.call(safeEdits, 'メールアドレス')) {
+        safeEdits['メールアドレス'] = normalizeEmail_(safeEdits['メールアドレス']);
+        if (safeEdits['メールアドレス'] && !isValidEmail_(safeEdits['メールアドレス'])) {
+          throw new Error('メールアドレスの形式が正しくありません');
+        }
+      }
       const confirmed = Object.assign({}, reservation, safeEdits);
 
       SheetService.updateReservation(id, {
@@ -264,8 +291,8 @@ function deleteExpiredSessions_(props) {
 function requestAdminLoginLink(email) {
   const genericResponse = { success: true, message: '登録済みのメールアドレスであれば、ログイン用のリンクを送信しました。メールをご確認ください。' };
   try {
-    const trimmed = String(email || '').trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    const trimmed = normalizeEmail_(email);
+    if (!isValidEmail_(trimmed)) {
       return { success: false, error: '正しいメールアドレスを入力してください' };
     }
     const lower = trimmed.toLowerCase();
@@ -365,8 +392,8 @@ function addUser(email, role, sessionToken) {
     if (role !== 'admin' && role !== 'viewer') {
       throw new Error('権限の指定が正しくありません');
     }
-    const trimmed = String(email || '').trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    const trimmed = normalizeEmail_(email);
+    if (!isValidEmail_(trimmed)) {
       throw new Error('正しいメールアドレスを入力してください');
     }
     const lower = trimmed.toLowerCase();
@@ -565,8 +592,8 @@ function createReservationByAdmin(data, sessionToken) {
     if (!name) {
       throw new Error('氏名を入力してください');
     }
-    const email = String(input.email || '').trim();
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const email = normalizeEmail_(input.email);
+    if (email && !isValidEmail_(email)) {
       throw new Error('メールアドレスの形式が正しくありません');
     }
 

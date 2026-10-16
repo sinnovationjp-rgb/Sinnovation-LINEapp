@@ -100,6 +100,8 @@ button {
 .cal-cell.is-past { color: #c9c1b5; background: transparent; border-color: transparent; }
 .cal-cell.is-past .cal-mark { color: #d8d1c4; }
 .cal-cell.is-available { cursor: pointer; }
+.cal-cell.is-closed { background: transparent; border-color: transparent; color: #d0a39a; }
+.cal-cell.is-closed .cal-mark { color: #c0614f; font-size: 0.72rem; font-weight: 700; }
 .cal-cell.is-selected { background: var(--accent); border-color: var(--accent); }
 .cal-cell.is-selected .cal-num,
 .cal-cell.is-selected .cal-mark { color: #fff; }
@@ -315,3 +317,17 @@ button.home-cta {
 .field-error { display: block; margin-top: 6px; font-size: 0.78rem; font-weight: 600; color: #b3412f; }
 .field-error:empty { display: none; }
 .text-field input.is-invalid { border-color: #b3412f; background: #fdf3f1; }
+
+/* 人数・時間のプルダウン */
+.select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.select-field { display: block; }
+.select-input {
+  width: 100%; appearance: none; -webkit-appearance: none; font: inherit; font-size: 1rem; color: #211c17;
+  padding: 13px 38px 13px 14px; border: 1px solid var(--border); border-radius: 12px; background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23b6763a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+.select-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(182, 118, 58, 0.16); }
+.select-input:invalid { color: #9a9086; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 2px 0; font-size: 0.72rem; color: var(--muted); }
+.cal-legend .is-closed { color: #c0614f; }

@@ -35,16 +35,22 @@
           <button type="button" class="cal-nav-btn" id="cal-next" aria-label="翌月">›</button>
         </div>
         <div class="cal-grid" id="cal-grid"></div>
+        <p class="cal-legend"><span>○ 空きあり</span><span>－ 受付不可</span><span class="is-closed">休 定休日（日曜・祝日）</span></p>
       </div>
 
-      <div class="field">
-        <span class="field-label">人数</span>
-        <div class="pill-row" id="people-row"></div>
-      </div>
-
-      <div class="field">
-        <span class="field-label">時間</span>
-        <div class="pill-row time-row" id="time-row"></div>
+      <div class="select-row">
+        <label class="field select-field">
+          <span class="field-label">人数</span>
+          <select id="people-select" class="select-input" required>
+            <option value="" disabled selected>選択してください</option>
+          </select>
+        </label>
+        <label class="field select-field">
+          <span class="field-label">時間</span>
+          <select id="time-select" class="select-input" required>
+            <option value="" disabled selected>選択してください</option>
+          </select>
+        </label>
       </div>
 
       <button type="button" class="primary-btn" id="step1-next" disabled>次へ</button>

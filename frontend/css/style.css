@@ -100,6 +100,8 @@ button {
 .cal-cell.is-past { color: #c9c1b5; background: transparent; border-color: transparent; }
 .cal-cell.is-past .cal-mark { color: #d8d1c4; }
 .cal-cell.is-available { cursor: pointer; }
+.cal-cell.is-closed { background: transparent; border-color: transparent; color: #d0a39a; }
+.cal-cell.is-closed .cal-mark { color: #c0614f; font-size: 0.72rem; font-weight: 700; }
 .cal-cell.is-selected { background: var(--accent); border-color: var(--accent); }
 .cal-cell.is-selected .cal-num,
 .cal-cell.is-selected .cal-mark { color: #fff; }
@@ -315,3 +317,9 @@ button.home-cta {
 .field-error { display: block; margin-top: 6px; font-size: 0.78rem; font-weight: 600; color: #b3412f; }
 .field-error:empty { display: none; }
 .text-field input.is-invalid { border-color: #b3412f; background: #fdf3f1; }
+
+/* 人数（1〜15名）は横スクロールだと選びにくいため、5列で折り返して並べる */
+#people-row { display: grid; grid-template-columns: repeat(5, 1fr); overflow: visible; }
+#people-row .pill { justify-content: center; padding-left: 0; padding-right: 0; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 2px 0; font-size: 0.72rem; color: var(--muted); }
+.cal-legend .is-closed { color: #c0614f; }

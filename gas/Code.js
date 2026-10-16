@@ -26,6 +26,33 @@ function isValidEmail_(email) {
   return EMAIL_PATTERN.test(String(email || ''));
 }
 
+// 1件の予約で受け付ける人数の上限（1日の合計人数の目安 SheetService.DAILY_CAPACITY とは別）。
+// frontend/js/calendar.js の人数ボタンもこの人数まで表示する
+const MAX_HEADCOUNT = 15;
+
+function isValidHeadcount_(value) {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= MAX_HEADCOUNT;
+}
+
+// 定休日（日曜・祝日）の判定。祝日一覧の取得に失敗した場合は、予約受付を止めないよう日曜のみで判定する
+function getHolidayMap_(startDate, endDate) {
+  try {
+    return CalendarService.getJapaneseHolidays(startDate, endDate);
+  } catch (err) {
+    console.error('getHolidayMap_: 祝日の取得に失敗したため、日曜のみを定休日として扱います', err);
+    return {};
+  }
+}
+
+// 'yyyy-MM-dd' が定休日なら理由（'日曜定休' / 祝日名）を、営業日なら空文字を返す
+function getClosedReason_(dateStr, holidays) {
+  const parts = String(dateStr).split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return '';
+  if (new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])).getUTCDay() === 0) return '日曜定休';
+  return holidays && holidays[dateStr] ? `祝日（${holidays[dateStr]}）` : '';
+}
+
 // 予約データの読み取り→判定→書き込みが複数リクエストで同時に走ると、スプレッドシートの
 // 二重書き込みや、確定/キャンセル二重実行防止チェックがすり抜ける恐れがあるため、
 // 予約を変更する処理はスクリプト全体で排他制御する
@@ -55,6 +82,17 @@ function doPost(e) {
   if (!data.datetime || !data.name || !data.phone) {
     console.error('doPost: 必須項目が不足しています', data);
     return jsonResponse_({ success: false, error: '日時・氏名・電話番号は必須です' });
+  }
+  if (data.headcount !== undefined && data.headcount !== '' && !isValidHeadcount_(data.headcount)) {
+    return jsonResponse_({ success: false, error: `人数は1〜${MAX_HEADCOUNT}名でお選びください` });
+  }
+  const reserveDateStr = String(data.datetime).slice(0, 10);
+  const reserveDay = new Date(reserveDateStr + 'T00:00:00+09:00');
+  if (!isNaN(reserveDay.getTime())) {
+    const nextDay = new Date(reserveDay.getTime() + 24 * 60 * 60 * 1000);
+    if (getClosedReason_(reserveDateStr, getHolidayMap_(reserveDay, nextDay))) {
+      return jsonResponse_({ success: false, error: '日曜・祝日は定休日のため、ご予約いただけません' });
+    }
   }
   data.email = normalizeEmail_(data.email);
   if (data.email && !isValidEmail_(data.email)) {
@@ -509,6 +547,69 @@ function renderAdminPage_(sessionToken) {
   return template.evaluate().setTitle('予約管理');
 }
 
+// 管理画面から予約の人数を変更する（管理者のみ）。確定済みでカレンダーに予定がある場合は、予定のタイトルも更新する。
+// お客様への自動連絡はしない（変更はお客様からの依頼で行う想定のため）
+function updateReservationHeadcount(id, headcount, sessionToken) {
+  try {
+    if (!isAuthorizedAdmin_(sessionToken)) {
+      throw new Error('アクセス権がありません');
+    }
+    if (!id) {
+      throw new Error('予約IDが指定されていません');
+    }
+    if (!isValidHeadcount_(headcount)) {
+      throw new Error(`人数は1〜${MAX_HEADCOUNT}名で入力してください`);
+    }
+    const newHeadcount = Number(headcount);
+
+    const result = withReservationLock_(() => {
+      const reservation = SheetService.getReservationById(id);
+      if (!reservation) {
+        throw new Error(`予約ID ${id} が見つかりません`);
+      }
+      if (reservation['ステータス'] === 'キャンセル') {
+        throw new Error('キャンセル済みの予約は変更できません');
+      }
+      const oldHeadcount = reservation['人数'];
+      if (Number(oldHeadcount) === newHeadcount) {
+        return { reservation: reservation, changed: false };
+      }
+      SheetService.updateReservation(id, { '人数': newHeadcount });
+      const updated = Object.assign({}, reservation, { '人数': newHeadcount });
+
+      if (reservation['ステータス'] === '確定' && reservation['カレンダーイベントID']) {
+        try {
+          CalendarService.updateEventTitle(reservation['カレンダーイベントID'], {
+            space: updated['スペース'],
+            name: updated['氏名（カタカナ）'],
+            headcount: newHeadcount,
+            drink: updated['飲み放題']
+          });
+        } catch (calendarErr) {
+          console.error(`updateReservationHeadcount: カレンダーの予定更新に失敗しました（予約ID ${id}）`, calendarErr);
+          NotifyService.send(`⚠️ カレンダーの予定の人数更新に失敗しました（予約ID ${id}）。手動で修正してください。\nエラー: ${calendarErr}`);
+        }
+      }
+      return { reservation: updated, changed: true, oldHeadcount: oldHeadcount };
+    });
+
+    if (result.changed) {
+      const r = result.reservation;
+      NotifyService.send([
+        '予約の人数が変更されました（管理画面）',
+        `日時: ${formatDateTimeForDisplay_(r['予約日時'])}`,
+        `氏名: ${r['氏名（カタカナ）'] || ''}`,
+        `人数: ${result.oldHeadcount}名 → ${newHeadcount}名`,
+        `ステータス: ${r['ステータス']}`
+      ].join('\n'));
+    }
+    return { success: true, reservation: JSON.parse(JSON.stringify(result.reservation)) };
+  } catch (err) {
+    console.error('updateReservationHeadcount failed', err);
+    return { success: false, error: String(err.message || err) };
+  }
+}
+
 function cancelReservation(id, sessionToken) {
   try {
     if (!isAuthorizedAdmin_(sessionToken)) {
@@ -585,8 +686,8 @@ function createReservationByAdmin(data, sessionToken) {
       throw new Error('予約日時を正しく入力してください');
     }
     const headcount = Number(input.headcount);
-    if (!Number.isInteger(headcount) || headcount < 1) {
-      throw new Error('人数を正しく入力してください');
+    if (!isValidHeadcount_(headcount)) {
+      throw new Error(`人数を正しく入力してください（1〜${MAX_HEADCOUNT}名）`);
     }
     const name = String(input.name || '').trim();
     if (!name) {

@@ -9,6 +9,9 @@ const reserveState = {
   usageHistory: '初めて'
 };
 
+// 1件の予約で選べる人数の上限（gas/Code.jsのMAX_HEADCOUNTと同じ）
+const MAX_HEADCOUNT = 15;
+
 function getDummyAvailability() {
   const today = new Date();
   const data = [];
@@ -16,7 +19,8 @@ function getDummyAvailability() {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
     const dateStr = date.toISOString().slice(0, 10);
-    data.push({ date: dateStr, available: i % 3 !== 0 });
+    const closed = date.getDay() === 0;
+    data.push({ date: dateStr, available: !closed && i % 3 !== 0, closed: closed });
   }
   return data;
 }
@@ -56,8 +60,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const availability = await fetchAvailability();
   const availabilityMap = {};
-  availability.forEach(({ date, available }) => {
+  const closedMap = {};
+  availability.forEach(({ date, available, closed, closedReason }) => {
     availabilityMap[date] = available;
+    if (closed) closedMap[date] = closedReason || '定休日';
   });
   const maxDate = availability.length
     ? new Date(availability[availability.length - 1].date + 'T00:00:00')
@@ -94,11 +100,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dateStr = isoDate(viewYear, viewMonth, day);
       const isOutOfRange = cellDate < today || cellDate > maxDate;
       const available = availabilityMap[dateStr];
+      // 日曜・祝日は定休日（サーバーの判定がない日付も、日曜は定休日として表示する）
+      const isClosed = !isOutOfRange && (dateStr in closedMap || cellDate.getDay() === 0);
 
       const cell = document.createElement('div');
-      const cellIsAvailable = !isOutOfRange && available === true;
-      cell.className = 'cal-cell' + (isOutOfRange || !cellIsAvailable ? ' is-past' : ' is-available');
-      cell.innerHTML = `<span class="cal-num">${day}</span><span class="cal-mark">${cellIsAvailable ? '○' : '－'}</span>`;
+      const cellIsAvailable = !isOutOfRange && !isClosed && available === true;
+      cell.className = 'cal-cell' + (isClosed ? ' is-closed' : isOutOfRange || !cellIsAvailable ? ' is-past' : ' is-available');
+      cell.innerHTML = `<span class="cal-num">${day}</span><span class="cal-mark">${isClosed ? '休' : cellIsAvailable ? '○' : '－'}</span>`;
+      if (isClosed) cell.title = closedMap[dateStr] || '定休日';
 
       if (cellIsAvailable) {
         if (dateStr === reserveState.dateISO) cell.classList.add('is-selected');
@@ -129,7 +138,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const peopleRow = document.getElementById('people-row');
   if (peopleRow) {
-    for (let n = 1; n <= 8; n++) {
+    for (let n = 1; n <= MAX_HEADCOUNT; n++) {
       const pill = document.createElement('div');
       pill.className = 'pill';
       pill.innerHTML = `<span class="dot"></span>${n}名`;

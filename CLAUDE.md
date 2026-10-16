@@ -10,6 +10,8 @@ LINE公式アカウントのLIFFを使ったスペース予約システム。ユ
 - バックエンド: Google Apps Script (GAS) のWeb App一本（doGet/doPost）。
 - DB: Googleスプレッドシート（予約管理台帳）。空き状況判定はスプレッドシートの確定済みデータのみで完結する（Googleカレンダーの空き状況は参照しない）
 - 空き状況判定のルール: 1日あたりの合計人数（スペース合算）が15人に達していなければ「空きあり」とする粗めの目安表示。日付単位の判定のみでスペース・時間帯別の判定は行わない。最終的な可否はスタッフが承認画面で個別に判断する
+- 定休日: 日曜・祝日。`getClosedReason_()`（Code.js）が判定し、祝日はGoogleの「日本の祝日」カレンダー（`ja.japanese#holiday@group.v.calendar.google.com`）から`CalendarService.getJapaneseHolidays()`で取得する（6時間キャッシュ）。2024年頃から節分・七五三など祝日でない行事も同じカレンダーに入るようになったため、説明欄が「祝日」で始まるものだけを祝日として扱う。祝日の取得に失敗した場合は日曜のみで判定する。空き状況JSON（`getAvailability`）は定休日に`closed: true`と`closedReason`を返し、予約フォームのカレンダーは「休」と表示して選べない。`doPost`も定休日の予約を拒否する。管理画面の「予約を追加」は特別対応のため定休日でも登録できる
+- 1件の予約の人数は1〜15名（`MAX_HEADCOUNT`、Code.js。予約フォームの人数ボタンも`frontend/js/calendar.js`の`MAX_HEADCOUNT`で15名まで表示する）。`doPost`・管理画面の予約追加・人数変更のすべてで検証する
 - カレンダー連携: 予約が承認・確定したタイミングでCalendarServiceがGoogleカレンダーに予定を登録する（確定記録の反映先としてのみ利用し、空き状況判定には使わない）
 - 通知: Discord Webhook（初期はSlack Webhookで代用可） / LINE Messaging API（仮予約受付時・確定時・キャンセル時・前日リマインド時、LINE UserId保持者向け） / MailApp（仮予約受付時・確定時・前日リマインド時、メールアドレス登録者向け）
 
@@ -24,6 +26,7 @@ doGet/doPostは公開URLを1つしか持てないため、クエリパラメー�
 - 予約一覧・ステータス別フィルタ・検索・詳細パネルからの承認/却下/キャンセル操作ができるスタッフ向け画面
 - 権限は2段階（`admin`=管理者／`viewer`=閲覧者）。`getUserRole_(sessionToken)`が利用者のメールアドレスを特定し、スクリプトプロパティ`ADMIN_EMAILS`（管理者）・`VIEWER_EMAILS`（閲覧者、いずれもカンマ区切りのメールアドレス一覧）と照合する。`isAuthorizedAdmin_(sessionToken)`は`admin`ロールのみtrueを返し、却下/キャンセル・ユーザー管理などの操作系関数はすべてこれで保護する（各関数は最後の引数で`sessionToken`を受け取る）。閲覧者は一覧の閲覧のみで、画面上のボタンも表示されない（サーバー側でも操作は拒否される）。権限がない場合は一覧データを含まないログイン画面（AdminLoginPage.html）を返す
 - 電話・店頭・SNSなどで受けた予約は、管理者画面右上の「予約を追加」からスタッフが直接登録できる（管理者のみ、`createReservationByAdmin(data, sessionToken)`）。「確定」で登録すると`SheetService.addProvisionalReservation`で行を追加した後に`approveReservation`を呼び、承認と同じ処理（カレンダー登録・Discord通知・メールアドレスがあれば確定メール）を行う。「仮予約」で登録するとDiscordに「【管理画面から追加】」付きの承認リンクを通知するだけで、お客様への仮予約受付メールは送らない（文面が「LINEでご連絡します」のため）。LINE UserIdは空になるのでLINE通知は飛ばない
+- 管理者は予約の詳細パネルの人数横の「変更」から人数を変更できる（`updateReservationHeadcount(id, headcount, sessionToken)`、仮予約・確定のみ）。確定済みでカレンダーに予定がある場合は予定のタイトルも更新し、Discordに「○名 → ○名」と通知する。お客様への自動連絡はしない
 - 管理者・閲覧者の追加/削除/権限変更は、管理者画面右上の「ユーザーを管理」から行う（Googleドライブの共有ダイアログに似たUI）。`getAllUsers`/`addUser`/`removeUser`/`setUserRole`（すべて`isAuthorizedAdmin_()`で保護）がADMIN_EMAILS/VIEWER_EMAILSを読み書きする。管理者が0人になる操作（削除・閲覧者への降格）は拒否し、ロックアウトを防ぐ
 - 本人確認は2通り。既存の1つのWebアプリデプロイ（「自分として実行」「全員（匿名を含む）」）で予約用・管理者用を兼用し、別デプロイは不要
   1. **sinnovation.jpのアカウント**: `Session.getActiveUser().getEmail()`でメールアドレスが取れるので、Googleにログインしていればそのまま開ける

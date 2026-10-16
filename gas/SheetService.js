@@ -155,13 +155,23 @@ var SheetService = (function () {
       console.error('SheetService.getAvailability: 予約データの取得に失敗しました', err);
     }
 
+    const lastDay = new Date(today);
+    lastDay.setDate(today.getDate() + daysAhead);
+    const holidays = getHolidayMap_(today, lastDay);
+
     const result = [];
     for (let i = 0; i < daysAhead; i++) {
       const day = new Date(today);
       day.setDate(today.getDate() + i);
       const dateStr = Utilities.formatDate(day, 'Asia/Tokyo', 'yyyy-MM-dd');
+      const closedReason = getClosedReason_(dateStr, holidays);
       const total = bookedHeadcount[dateStr] || 0;
-      result.push({ date: dateStr, available: total < DAILY_CAPACITY });
+      result.push({
+        date: dateStr,
+        available: !closedReason && total < DAILY_CAPACITY,
+        closed: !!closedReason,
+        closedReason: closedReason || ''
+      });
     }
     return result;
   }

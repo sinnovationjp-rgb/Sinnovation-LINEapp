@@ -136,39 +136,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   renderMonth();
 
-  const peopleRow = document.getElementById('people-row');
-  if (peopleRow) {
+  const peopleSelect = document.getElementById('people-select');
+  if (peopleSelect) {
     for (let n = 1; n <= MAX_HEADCOUNT; n++) {
-      const pill = document.createElement('div');
-      pill.className = 'pill';
-      pill.innerHTML = `<span class="dot"></span>${n}名`;
-      pill.addEventListener('click', () => {
-        document.querySelectorAll('#people-row .pill').forEach((el) => el.classList.remove('is-selected'));
-        pill.classList.add('is-selected');
-        reserveState.people = n;
-        updateStep1Ready();
-      });
-      peopleRow.appendChild(pill);
+      peopleSelect.add(new Option(`${n}名`, String(n)));
     }
+    peopleSelect.addEventListener('change', () => {
+      reserveState.people = Number(peopleSelect.value) || null;
+      updateStep1Ready();
+    });
   }
 
-  const timeRow = document.getElementById('time-row');
-  if (timeRow) {
+  const timeSelect = document.getElementById('time-select');
+  if (timeSelect) {
     for (let minutes = 15 * 60; minutes <= 21 * 60; minutes += 30) {
-      const h = String(Math.floor(minutes / 60)).padStart(2, '0');
-      const m = String(minutes % 60).padStart(2, '0');
-      const label = `${h}:${m}`;
-      const pill = document.createElement('div');
-      pill.className = 'pill';
-      pill.textContent = label;
-      pill.addEventListener('click', () => {
-        document.querySelectorAll('#time-row .pill').forEach((el) => el.classList.remove('is-selected'));
-        pill.classList.add('is-selected');
-        reserveState.time = label;
-        updateStep1Ready();
-      });
-      timeRow.appendChild(pill);
+      const label = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+      timeSelect.add(new Option(label, label));
     }
+    timeSelect.addEventListener('change', () => {
+      reserveState.time = timeSelect.value || null;
+      updateStep1Ready();
+    });
   }
 });
 

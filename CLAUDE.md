@@ -11,7 +11,7 @@ LINE公式アカウントのLIFFを使ったスペース予約システム。ユ
 - DB: Googleスプレッドシート（予約管理台帳）。空き状況判定はスプレッドシートの確定済みデータのみで完結する（Googleカレンダーの空き状況は参照しない）
 - 空き状況判定のルール: 1日あたりの合計人数（スペース合算）が15人に達していなければ「空きあり」とする粗めの目安表示。日付単位の判定のみでスペース・時間帯別の判定は行わない。最終的な可否はスタッフが承認画面で個別に判断する
 - 定休日: 日曜・祝日。`getClosedReason_()`（Code.js）が判定し、祝日はGoogleの「日本の祝日」カレンダー（`ja.japanese#holiday@group.v.calendar.google.com`）から`CalendarService.getJapaneseHolidays()`で取得する（6時間キャッシュ）。2024年頃から節分・七五三など祝日でない行事も同じカレンダーに入るようになったため、説明欄が「祝日」で始まるものだけを祝日として扱う。祝日の取得に失敗した場合は日曜のみで判定する。空き状況JSON（`getAvailability`）は定休日に`closed: true`と`closedReason`を返し、予約フォームのカレンダーは「休」と表示して選べない。`doPost`も定休日の予約を拒否する。管理画面の「予約を追加」は特別対応のため定休日でも登録できる
-- 1件の予約の人数は1〜15名（`MAX_HEADCOUNT`、Code.js。予約フォームの人数ボタンも`frontend/js/calendar.js`の`MAX_HEADCOUNT`で15名まで表示する）。`doPost`・管理画面の予約追加・人数変更のすべてで検証する
+- 1件の予約の人数は1〜15名（`MAX_HEADCOUNT`、Code.js。予約フォームの人数プルダウンも`frontend/js/calendar.js`の`MAX_HEADCOUNT`で15名まで表示する。時間も15:00〜21:00の30分刻みのプルダウン）。`doPost`・管理画面の予約追加・人数変更のすべてで検証する
 - カレンダー連携: 予約が承認・確定したタイミングでCalendarServiceがGoogleカレンダーに予定を登録する（確定記録の反映先としてのみ利用し、空き状況判定には使わない）
 - 通知: Discord Webhook（初期はSlack Webhookで代用可） / LINE Messaging API（仮予約受付時・確定時・キャンセル時・前日リマインド時、LINE UserId保持者向け） / MailApp（仮予約受付時・確定時・前日リマインド時、メールアドレス登録者向け）
 

@@ -190,6 +190,18 @@
   .status-choice label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
   .form-hint { font-size: 0.75rem; color: var(--text-muted); margin: 0; line-height: 1.6; }
   .modal-foot.split { gap: 10px; }
+  .hc-edit-btn, .hc-save-btn, .hc-cancel-btn {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 0.75rem;
+    font-weight: 700; padding: 3px 10px; border-radius: 999px; cursor: pointer; margin-left: 6px;
+  }
+  .hc-edit-btn:hover { border-color: var(--accent); }
+  .hc-save-btn { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .hc-save-btn:disabled { opacity: 0.6; }
+  .hc-editor { display: inline-flex; align-items: center; gap: 2px; }
+  .hc-editor input { width: 56px; border: 1px solid var(--border); border-radius: 8px; padding: 4px 6px; font: inherit; text-align: right; }
+  .hc-editor input:focus { outline: none; border-color: var(--accent); }
+  .hc-error { display: block; color: var(--danger); font-size: 0.75rem; margin-top: 4px; }
+  .hc-error:empty { display: none; }
   @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } }
 
   @media (max-width: 480px) {
@@ -336,7 +348,7 @@
     <div class="form-grid">
       <div class="form-field"><label for="add-date">日付<span class="req">*</span></label><input type="date" id="add-date" required></div>
       <div class="form-field"><label for="add-time">時刻<span class="req">*</span></label><input type="time" id="add-time" step="900" required></div>
-      <div class="form-field"><label for="add-headcount">人数<span class="req">*</span></label><input type="number" id="add-headcount" min="1" step="1" inputmode="numeric" required></div>
+      <div class="form-field"><label for="add-headcount">人数<span class="req">*</span></label><input type="number" id="add-headcount" min="1" max="15" step="1" inputmode="numeric" required></div>
       <div class="form-field"><label for="add-space">スペース</label>
         <select id="add-space">
           <option value="">未定</option>
@@ -498,7 +510,7 @@
     document.getElementById('panel-name').textContent = r['氏名（カタカナ）'] || '（氏名未入力）';
     document.getElementById('panel-status').innerHTML = '<span class="pill ' + statusPillClass(r['ステータス']) + '">' + escapeHtml_(r['ステータス']) + '</span>';
     document.getElementById('d-datetime').textContent = fmtDateTime(r['予約日時']);
-    document.getElementById('d-headcount').textContent = (r['人数'] || '') + '名';
+    renderHeadcount(r);
     document.getElementById('d-space').textContent = r['スペース'] || '';
     document.getElementById('d-drink').textContent = r['飲み放題'] || '';
     document.getElementById('d-history').textContent = r['ご利用履歴'] || '';
@@ -535,6 +547,62 @@
     document.getElementById('panel').classList.add('is-open');
     document.getElementById('panel').setAttribute('aria-hidden', 'false');
     document.getElementById('overlay').classList.add('is-open');
+  }
+
+  // 人数は管理者なら詳細パネルから変更できる（仮予約・確定のみ。キャンセル済みは不可）
+  function renderHeadcount(r) {
+    var el = document.getElementById('d-headcount');
+    var canEdit = myRole === 'admin' && (r['ステータス'] === '仮予約' || r['ステータス'] === '確定');
+    el.innerHTML = '<span id="hc-value">' + escapeHtml_(r['人数'] || '') + '名</span>' +
+      (canEdit ? ' <button type="button" class="hc-edit-btn" id="hc-edit">変更</button>' : '');
+    if (!canEdit) return;
+    document.getElementById('hc-edit').addEventListener('click', function () {
+      el.innerHTML =
+        '<span class="hc-editor">' +
+          '<input type="number" id="hc-input" min="1" max="15" step="1" inputmode="numeric" value="' + escapeHtml_(r['人数'] || '') + '">名' +
+          '<button type="button" class="hc-save-btn" id="hc-save">保存</button>' +
+          '<button type="button" class="hc-cancel-btn" id="hc-cancel">取消</button>' +
+        '</span>' +
+        '<span class="hc-error" id="hc-error"></span>';
+      var input = document.getElementById('hc-input');
+      input.focus();
+      input.select();
+      document.getElementById('hc-cancel').addEventListener('click', function () { renderHeadcount(r); });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('hc-save').click(); }
+        if (e.key === 'Escape') renderHeadcount(r);
+      });
+      document.getElementById('hc-save').addEventListener('click', function () {
+        var value = Number(input.value);
+        var errorEl = document.getElementById('hc-error');
+        if (!Number.isInteger(value) || value < 1 || value > 15) {
+          errorEl.textContent = '1〜15名で入力してください';
+          return;
+        }
+        var saveBtn = this;
+        saveBtn.disabled = true;
+        saveBtn.textContent = '保存中...';
+        google.script.run.withSuccessHandler(function (res) {
+          if (!res || !res.success) {
+            errorEl.textContent = res && res.error ? res.error : '変更に失敗しました';
+            saveBtn.disabled = false;
+            saveBtn.textContent = '保存';
+            return;
+          }
+          r['人数'] = res.reservation['人数'];
+          renderHeadcount(r);
+          renderStats();
+          renderTable();
+          document.querySelectorAll('#table-body tr').forEach(function (tr) {
+            tr.classList.toggle('is-selected', tr.dataset.id === String(r['ID']));
+          });
+        }).withFailureHandler(function (err) {
+          errorEl.textContent = err && err.message ? err.message : String(err);
+          saveBtn.disabled = false;
+          saveBtn.textContent = '保存';
+        }).updateReservationHeadcount(r['ID'], value, sessionToken);
+      });
+    });
   }
 
   function runAction(btn, id, kind, newStatus) {
@@ -753,7 +821,7 @@
     var headcount = document.getElementById('add-headcount').value;
     var name = document.getElementById('add-name').value.trim();
     if (!date || !time) { errorEl.textContent = '日付と時刻を入力してください'; return; }
-    if (!headcount || Number(headcount) < 1) { errorEl.textContent = '人数を入力してください'; return; }
+    if (!headcount || Number(headcount) < 1 || Number(headcount) > 15) { errorEl.textContent = '人数は1〜15名で入力してください'; return; }
     if (!name) { errorEl.textContent = '氏名を入力してください'; return; }
 
     var status = selectedAddStatus();

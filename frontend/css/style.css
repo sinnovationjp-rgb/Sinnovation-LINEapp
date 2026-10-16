@@ -310,3 +310,8 @@ button.home-cta {
   font-weight: 800;
   font-size: 0.8rem;
 }
+
+/* 入力エラー（予約フォーム） */
+.field-error { display: block; margin-top: 6px; font-size: 0.78rem; font-weight: 600; color: #b3412f; }
+.field-error:empty { display: none; }
+.text-field input.is-invalid { border-color: #b3412f; background: #fdf3f1; }

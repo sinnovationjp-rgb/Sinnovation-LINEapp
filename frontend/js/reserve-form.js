@@ -33,12 +33,46 @@ function showStep(n) {
 document.getElementById('step1-next')?.addEventListener('click', () => showStep(2));
 document.getElementById('step2-next')?.addEventListener('click', () => showStep(3));
 
+// スマホでは全角の「＠」「．」や英数字が入力されることがあるため、半角に揃えて前後の空白を除く
+function normalizeEmail(value) {
+  return String(value || '')
+    .replace(/[！-～]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/\u3000/g, ' ')
+    .trim();
+}
+
+// gas/Code.jsのEMAIL_PATTERNと同じ（変えるときは両方そろえる）。
+// 「@」の前はdocomo・auの古いアドレス（「..」や「@」直前の「.」）も通すため緩め、ドメインは厳しめに判定する
+const EMAIL_PATTERN = /^[A-Za-z0-9.!#$%&'*+\/=?^_`{|}~-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+
+// メールアドレスは任意項目。入力されている場合だけ形式をチェックし、正しければtrueを返す
+function validateEmailInput() {
+  const input = document.getElementById('email-input');
+  const errorEl = document.getElementById('email-error');
+  const email = normalizeEmail(input.value);
+  input.value = email;
+  const ok = !email || EMAIL_PATTERN.test(email);
+  errorEl.textContent = ok ? '' : 'メールアドレスの形式が正しくありません（例: example@gmail.com）';
+  input.classList.toggle('is-invalid', !ok);
+  return ok;
+}
+
+document.getElementById('email-input')?.addEventListener('blur', validateEmailInput);
+document.getElementById('email-input')?.addEventListener('input', () => {
+  // 一度エラーを出した後は、正しい形式になった時点ですぐにエラー表示を消す
+  if (document.getElementById('email-input').classList.contains('is-invalid')) validateEmailInput();
+});
+
 document.getElementById('step3-next')?.addEventListener('click', () => {
   const lastname = document.getElementById('lastname-input').value.trim();
   const firstname = document.getElementById('firstname-input').value.trim();
   const phone = document.getElementById('phone-input').value.trim();
   if (!lastname || !firstname || !phone) {
     alert('セイ・メイ・電話番号は必須です');
+    return;
+  }
+  if (!validateEmailInput()) {
+    document.getElementById('email-input').focus();
     return;
   }
   showStep(4);

@@ -201,14 +201,6 @@ body.home main { padding: 0 0 32px; }
   letter-spacing: 0.02em;
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
 }
-.home-brand span {
-  display: block;
-  margin-top: 8px;
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: 0.42em;
-  opacity: 0.9;
-}
 
 .home-sheet {
   position: relative;

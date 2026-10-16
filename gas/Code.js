@@ -751,8 +751,6 @@ function buildProvisionalMessage_(id, data, approvalUrl) {
     `飲み放題: ${data.drink || '未入力'}`,
     `ご利用履歴: ${data.usageHistory || '未入力'}`,
     `氏名: ${data.name || '未入力'}`,
-    `電話番号: ${data.phone || '未入力'}`,
-    `メールアドレス: ${data.email || 'なし'}`,
     `備考: ${data.note || 'なし'}`,
     `承認画面: ${approvalUrl}`
   ].join('\n');
@@ -787,7 +785,7 @@ function sendEmail_(to, subject, body) {
     MailApp.sendEmail({ to: to, subject: subject, body: body, name: 'oO SPACE' });
   } catch (err) {
     console.error(`sendEmail_: メール送信に失敗しました（宛先 ${to}）`, err);
-    NotifyService.send(`⚠️ メール送信に失敗しました（宛先: ${to}, 件名: ${subject}）\nエラー: ${err}`);
+    NotifyService.send(`⚠️ メール送信に失敗しました（件名: ${subject}）\nエラー: ${err}`);
   }
 }
 

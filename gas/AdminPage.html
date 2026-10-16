@@ -519,13 +519,19 @@
       actions.innerHTML =
         '<button class="btn danger-ghost" id="act-reject">却下</button>' +
         '<button class="btn primary" id="act-approve">承認して確定</button>';
-      document.getElementById('act-reject').addEventListener('click', function () { runAction(this, id, 'cancel', 'キャンセル'); });
+      document.getElementById('act-reject').addEventListener('click', function () {
+        if (!confirm(buildCancelConfirmMessage(r, false))) return;
+        runAction(this, id, 'cancel', 'キャンセル');
+      });
       document.getElementById('act-approve').addEventListener('click', function () { runAction(this, id, 'approve', '確定'); });
     } else if (r['ステータス'] === '確定') {
       actions.innerHTML =
         '<button class="btn danger-ghost" id="act-cancel">キャンセルにする</button>' +
         '<button class="btn ghost" id="act-close2">閉じる</button>';
-      document.getElementById('act-cancel').addEventListener('click', function () { runAction(this, id, 'cancel', 'キャンセル'); });
+      document.getElementById('act-cancel').addEventListener('click', function () {
+        if (!confirm(buildCancelConfirmMessage(r, true))) return;
+        runAction(this, id, 'cancel', 'キャンセル');
+      });
       document.getElementById('act-close2').addEventListener('click', closePanel);
     } else {
       actions.innerHTML = '<button class="btn ghost" id="act-close3">閉じる</button>';
@@ -535,6 +541,17 @@
     document.getElementById('panel').classList.add('is-open');
     document.getElementById('panel').setAttribute('aria-hidden', 'false');
     document.getElementById('overlay').classList.add('is-open');
+  }
+
+  // 却下・キャンセルは押した瞬間にお客様へLINE通知が飛び、取り消せないため、送信前に確認する
+  // （confirmはHTMLを解釈しないので、お客様の入力値をそのまま入れてよい）
+  function buildCancelConfirmMessage(r, wasConfirmed) {
+    var target = (r['氏名（カタカナ）'] || 'お名前未入力') + ' 様（' + fmtDateTime(r['予約日時']) + '・' + (r['人数'] || '') + '名）';
+    var action = wasConfirmed ? '確定済みのご予約をキャンセルします。' : 'このご予約を却下します。';
+    var notice = r['LINE UserId']
+      ? 'お客様にはLINEで自動的に通知されます。'
+      : 'LINE未連携のため、お客様には自動で連絡されません。電話などでお伝えください。';
+    return target + '\n' + action + '\n\n' + notice + '\nこの操作は取り消せません。よろしいですか？';
   }
 
   function runAction(btn, id, kind, newStatus) {

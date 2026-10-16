@@ -170,3 +170,151 @@ button {
   display: flex; align-items: center; justify-content: center; margin: 40px auto 18px; font-size: 1.5rem;
 }
 .complete-copy { text-align: center; color: var(--muted); font-size: 0.92rem; line-height: 1.7; }
+
+/* ---- トップ画面（index.html） ---- */
+body.home { background: #f7f3ec; }
+body.home main { padding: 0 0 32px; }
+
+.home-hero {
+  position: relative;
+  height: 300px;
+  background: url("../img/lounge-space.jpg") center / cover;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 22px 40px;
+}
+.home-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(20, 14, 8, 0.1) 0%, rgba(20, 14, 8, 0.75) 100%);
+}
+.home-brand {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  text-align: left;
+  color: #fff;
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+}
+.home-brand span {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.42em;
+  opacity: 0.9;
+}
+
+.home-sheet {
+  position: relative;
+  z-index: 2;
+  margin-top: -18px;
+  padding: 22px 20px 0;
+  background: #f7f3ec;
+  border-radius: 20px 20px 0 0;
+}
+button.home-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 0;
+  padding: 17px;
+  border-radius: 16px;
+  background: var(--accent);
+  font-size: 1.05rem;
+  font-weight: 800;
+  box-shadow: 0 8px 20px -8px rgba(182, 118, 58, 0.8);
+}
+.home-sub {
+  margin: 8px 0 22px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.home-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.home-section::before {
+  content: "";
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.home-spaces {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.home-space {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+.home-space img { display: block; width: 100%; height: 90px; object-fit: cover; }
+.home-space div { padding: 9px 10px; }
+.home-space b { display: block; font-size: 0.8rem; }
+.home-tag {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--badge-bg);
+  color: var(--badge-ink);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.home-steps {
+  display: flex;
+  margin: 0;
+  padding: 14px 6px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+.home-steps li {
+  position: relative;
+  flex: 1;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.home-steps li:not(:last-child)::after {
+  content: "›";
+  position: absolute;
+  top: 5px;
+  right: -4px;
+  color: #c9bba6;
+  font-size: 1.1rem;
+}
+.home-steps i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: 0 auto 6px;
+  border-radius: 50%;
+  background: var(--badge-bg);
+  color: var(--badge-ink);
+  font-style: normal;
+  font-weight: 800;
+  font-size: 0.8rem;
+}

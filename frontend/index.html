@@ -6,10 +6,39 @@
   <title>SPACE予約</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="home">
   <main id="portal">
-    <h1>SPACE予約</h1>
-    <button id="new-reservation">新規予約</button>
+    <header class="home-hero">
+      <h1 class="home-brand">oO SPACE<span>NIIGATA</span></h1>
+    </header>
+
+    <div class="home-sheet">
+      <button id="new-reservation" class="home-cta">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+        新規予約をする
+      </button>
+      <p class="home-sub">空き状況を見ながら日時を選べます</p>
+
+      <h2 class="home-section">2つのスペース</h2>
+      <div class="home-spaces">
+        <div class="home-space">
+          <img src="img/standing-space.jpg" alt="スタンディング・スペースの様子">
+          <div><b>スタンディング</b><span class="home-tag">チャージなし</span></div>
+        </div>
+        <div class="home-space">
+          <img src="img/lounge-space.jpg" alt="ラウンジ・スペースの様子">
+          <div><b>ラウンジ</b><span class="home-tag">貸切可</span></div>
+        </div>
+      </div>
+
+      <h2 class="home-section">ご予約の流れ</h2>
+      <ol class="home-steps">
+        <li><i>1</i>日時を選ぶ</li>
+        <li><i>2</i>スペース選択</li>
+        <li><i>3</i>情報入力</li>
+        <li><i>✓</i>LINEで確定</li>
+      </ol>
+    </div>
   </main>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>

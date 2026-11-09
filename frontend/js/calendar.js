@@ -15,7 +15,9 @@ const MAX_HEADCOUNT = 15;
 function getDummyAvailability() {
   const today = new Date();
   const data = [];
-  for (let i = 0; i < 30; i++) {
+  // GAS側（gas/Code.jsのBOOKING_MONTHS_AHEAD）と同じく3か月先まで
+  const lastDate = new Date(today.getFullYear(), today.getMonth() + 3, today.getDate());
+  for (let i = 0; new Date(today.getFullYear(), today.getMonth(), today.getDate() + i) <= lastDate; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
     const dateStr = date.toISOString().slice(0, 10);

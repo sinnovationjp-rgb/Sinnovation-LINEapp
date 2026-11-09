@@ -86,6 +86,8 @@ TASKS.mdのPhase順に、1フェーズずつ実装→動作確認→次フェー
 
 ## 進行中の作業メモ（引き継ぎ用）
 
+開発者向けの詳しい仕様は`docs/developer-spec.md`、開発の経緯・判断の理由・アカウントの所在・残作業は`docs/saito-ryota-memo.md`（齋藤稜太メモ）にまとめてある。設計や運用を変えたら、この2つも合わせて更新すること。
+
 ### 本番の公式LINEアカウントへの切り替え作業（2026-10-01 完了）
 これまで開発に使っていたテスト用LIFF（`LIFF_ID = '2011404271-2LcJbLkK'`）を、実際に運用する公式アカウント「oO SPACE Niigata」（ベーシックID `@186lmmed`）に切り替える作業。**LINE確定通知の実機受信を確認し、完了。**
 現在の本番LIFF ID: `2011811803-LPCWIDmb`（`frontend/js/liff-init.js`）。`@186lmmed`のMessaging APIチャネルと同一プロバイダー内に作成したLINE Loginチャネルのもの。

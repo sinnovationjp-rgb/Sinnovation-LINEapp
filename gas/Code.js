@@ -5,8 +5,29 @@ function doGet(e) {
   if (e.parameter && e.parameter.page === 'admin') {
     return renderAdminPage_(e.parameter.session);
   }
-  const availability = SheetService.getAvailability(30);
+  const availability = SheetService.getAvailability(getBookingDaysAhead_());
   return jsonResponse_(availability);
+}
+
+// 予約フォームで予約できる期間（今日から何か月先の同じ日まで）。空き状況JSONの範囲とdoPostの受付範囲に使う
+const BOOKING_MONTHS_AHEAD = 3;
+
+// 予約できる最終日（今日からBOOKING_MONTHS_AHEADか月後の同じ日。その月に同じ日がなければ月末）の 'yyyy-MM-dd'
+function getLastBookableDateStr_() {
+  const today = new Date();
+  const day = today.getDate();
+  const last = new Date(today.getFullYear(), today.getMonth() + BOOKING_MONTHS_AHEAD, 1);
+  const daysInMonth = new Date(last.getFullYear(), last.getMonth() + 1, 0).getDate();
+  last.setDate(Math.min(day, daysInMonth));
+  return Utilities.formatDate(last, 'Asia/Tokyo', 'yyyy-MM-dd');
+}
+
+// 今日から予約できる最終日までの日数（両端を含む）
+function getBookingDaysAhead_() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const last = new Date(getLastBookableDateStr_() + 'T00:00:00+09:00');
+  return Math.round((last.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)) + 1;
 }
 
 // スマホでは全角の「＠」「．」や英数字が入力されることがあるため、半角に揃えて前後の空白を除く
@@ -87,6 +108,9 @@ function doPost(e) {
     return jsonResponse_({ success: false, error: `人数は1〜${MAX_HEADCOUNT}名でお選びください` });
   }
   const reserveDateStr = String(data.datetime).slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(reserveDateStr) && reserveDateStr > getLastBookableDateStr_()) {
+    return jsonResponse_({ success: false, error: `ご予約は${BOOKING_MONTHS_AHEAD}か月先までの日付でお選びください` });
+  }
   const reserveDay = new Date(reserveDateStr + 'T00:00:00+09:00');
   if (!isNaN(reserveDay.getTime())) {
     const nextDay = new Date(reserveDay.getTime() + 24 * 60 * 60 * 1000);

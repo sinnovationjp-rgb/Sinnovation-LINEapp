@@ -859,7 +859,7 @@ cd frontend && python3 -m http.server 8000
 | 性質 | 内容 |
 |---|---|
 | トークン | 64桁の16進数（UUID2つ分）。形式が違えば即無効 |
-| 有効期間 | 7日（延長なし） |
+| 有効期間 | 7日（延長なし）。スクリプトプロパティ `LONG_LOGIN_EMAILS` に載せたアドレスだけは実質無期限（100年）で、一度開いたURLをブックマークすれば以降はログイン操作なしで入れる（ユーザー管理から削除・ログアウトで無効） |
 | 権限の変更 | 毎回照合し直すので、ユーザー登録を削除すればそのトークンも**即座に**無効 |
 | ログアウト | `logoutAdminSession()` がトークンを削除 |
 | 期限切れの掃除 | アクセス時にそのトークンを削除。新しいリンクの発行時に全セッションを掃除 |
@@ -1063,6 +1063,7 @@ GASには `.env` がないため、秘密情報・環境ごとの設定はすべ
 | `SLACK_WEBHOOK_URL` | ※ | Discordの代わりにSlackを使う場合（Discordが優先） | |
 | `ADMIN_EMAILS` | ○ | 管理者のメールアドレス（カンマ区切り） | 管理者画面に誰も入れない、フォールバックメールも届かない |
 | `VIEWER_EMAILS` | — | 閲覧者のメールアドレス（カンマ区切り） | |
+| `LONG_LOGIN_EMAILS` | — | ログインリンクを無期限にするアドレス（カンマ区切り）。ADMIN_EMAILS/VIEWER_EMAILSへの登録も必要 | 全員7日 |
 | `WEB_APP_URL` | 推奨 | `https://script.google.com/macros/s/〜/exec` 形式のWebアプリURL | 社外の人がリンクを開けない恐れ |
 | `LINE_CHANNEL_ID` | ○※ | `@186lmmed` のMessaging APIチャネルのID | LINE通知が送れない |
 | `LINE_CHANNEL_SECRET` | ○※ | 同チャネルのシークレット | 同上 |

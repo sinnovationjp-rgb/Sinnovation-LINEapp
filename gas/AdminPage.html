@@ -112,6 +112,9 @@
   .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 0.88rem; padding: 2px 0; margin: 0; }
   .kv dt { color: var(--text-muted); flex-shrink: 0; }
   .kv dd { margin: 0; text-align: right; font-weight: 500; }
+  .note-box.memo-box { background: #fffaf0; border-color: #ecdcbf; }
+  .memo-editor textarea { width: 100%; font: inherit; font-size: 0.85rem; line-height: 1.5; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 10px; resize: vertical; min-height: 90px; }
+  .memo-editor .row { display: flex; gap: 6px; justify-content: flex-end; align-items: center; margin-top: 6px; }
   .note-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap; }
   .panel-foot { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
   .btn { flex: 1; border: none; border-radius: 10px; padding: 11px 14px; font: inherit; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: filter .15s, background .15s; }
@@ -385,6 +388,10 @@
       <h3>備考</h3>
       <div class="note-box" id="d-note"></div>
     </div>
+    <div class="field-group">
+      <h3 style="display:flex;align-items:center;justify-content:space-between;">スタッフメモ<span id="memo-actions"></span></h3>
+      <div id="memo-body"></div>
+    </div>
   </div>
   <div class="panel-foot" id="panel-actions"></div>
 </aside>
@@ -447,6 +454,7 @@
       <div class="form-field full"><label for="add-name">氏名（カタカナ）<span class="req">*</span></label><input type="text" id="add-name" autocomplete="off"></div>
       <div class="form-field"><label for="add-phone">電話番号</label><input type="tel" id="add-phone" autocomplete="off"></div>
       <div class="form-field"><label for="add-email">メールアドレス</label><input type="email" id="add-email" autocomplete="off"></div>
+      <div class="form-field full"><label for="add-staff-memo">スタッフメモ（社内向け）</label><textarea id="add-staff-memo" rows="2" maxlength="2000"></textarea></div>
       <div class="form-field full"><label for="add-note">備考</label><textarea id="add-note" rows="2" placeholder="例: 電話で受付、Instagram DM経由 など"></textarea></div>
     </div>
     <div class="modal-error" id="add-error"></div>
@@ -611,6 +619,7 @@
       : '<span class="badge-liff off">● 未連携（通知不可）</span>';
     document.getElementById('d-created').textContent = fmtDateShort(r['登録日時']);
     document.getElementById('d-note').textContent = r['備考'] || '（備考なし）';
+    renderStaffMemo(r);
 
     var actions = document.getElementById('panel-actions');
     if (myRole !== 'admin') {
@@ -708,6 +717,49 @@
           saveBtn.disabled = false;
           saveBtn.textContent = '保存';
         }).updateReservationHeadcount(r['ID'], value, sessionToken);
+      });
+    });
+  }
+
+  // スタッフメモ（社内向け）。管理者は詳細パネルから編集できる。閲覧者は表示のみ
+  function renderStaffMemo(r) {
+    var body = document.getElementById('memo-body');
+    var actions = document.getElementById('memo-actions');
+    var memo = r['スタッフメモ'] || '';
+    body.innerHTML = '<div class="note-box memo-box"></div>';
+    body.firstChild.textContent = memo || '（メモなし）';
+    actions.innerHTML = myRole === 'admin' ? '<button type="button" class="hc-edit-btn" id="memo-edit">' + (memo ? '編集' : '追加') + '</button>' : '';
+    if (myRole !== 'admin') return;
+    document.getElementById('memo-edit').addEventListener('click', function () {
+      actions.innerHTML = '';
+      body.innerHTML =
+        '<div class="memo-editor"><textarea id="memo-input" maxlength="2000" placeholder="お客様には送られない社内向けのメモです"></textarea>' +
+        '<div class="row"><span class="hc-error" id="memo-error"></span>' +
+        '<button type="button" class="hc-cancel-btn" id="memo-cancel">取消</button>' +
+        '<button type="button" class="hc-save-btn" id="memo-save">保存</button></div></div>';
+      var input = document.getElementById('memo-input');
+      input.value = memo;
+      input.focus();
+      document.getElementById('memo-cancel').addEventListener('click', function () { renderStaffMemo(r); });
+      document.getElementById('memo-save').addEventListener('click', function () {
+        var saveBtn = this;
+        var errorEl = document.getElementById('memo-error');
+        saveBtn.disabled = true;
+        saveBtn.textContent = '保存中...';
+        google.script.run.withSuccessHandler(function (res) {
+          if (!res || !res.success) {
+            errorEl.textContent = res && res.error ? res.error : '保存に失敗しました';
+            saveBtn.disabled = false;
+            saveBtn.textContent = '保存';
+            return;
+          }
+          r['スタッフメモ'] = res.reservation['スタッフメモ'] || '';
+          renderStaffMemo(r);
+        }).withFailureHandler(function (err) {
+          errorEl.textContent = err && err.message ? err.message : String(err);
+          saveBtn.disabled = false;
+          saveBtn.textContent = '保存';
+        }).updateReservationStaffMemo(r['ID'], input.value, sessionToken);
       });
     });
   }
@@ -942,7 +994,8 @@
       name: name,
       phone: document.getElementById('add-phone').value.trim(),
       email: document.getElementById('add-email').value.trim(),
-      note: document.getElementById('add-note').value.trim()
+      note: document.getElementById('add-note').value.trim(),
+      staffMemo: document.getElementById('add-staff-memo').value.trim()
     };
     var submitBtn = document.getElementById('add-submit-btn');
     submitBtn.disabled = true;

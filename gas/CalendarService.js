@@ -11,7 +11,7 @@ var CalendarService = (function () {
     }
     const start = new Date(reservation.datetime);
     const end = new Date(start.getTime() + 60 * 60 * 1000);
-    return calendar.createEvent(buildTitle_(reservation), start, end, { description: reservation.note || '' });
+    return calendar.createEvent(buildTitle_(reservation), start, end, { description: reservation.description || '' });
   }
 
   function buildTitle_(reservation) {
@@ -59,6 +59,19 @@ var CalendarService = (function () {
     return holidays;
   }
 
+  // スタッフメモの編集など、確定済み予約の予定の説明欄を更新する
+  function updateEventDescription(eventId, description) {
+    if (!eventId) return;
+    const calendar = CalendarApp.getCalendarById(getCalendarId_());
+    if (!calendar) {
+      throw new Error('CALENDAR_IDのカレンダーが見つからないかアクセス権がありません');
+    }
+    const event = calendar.getEventById(eventId);
+    if (event) {
+      event.setDescription(description || '');
+    }
+  }
+
   function deleteEvent(eventId) {
     if (!eventId) return;
     const calendar = CalendarApp.getCalendarById(getCalendarId_());
@@ -75,6 +88,7 @@ var CalendarService = (function () {
     createEvent: createEvent,
     deleteEvent: deleteEvent,
     updateEventTitle: updateEventTitle,
+    updateEventDescription: updateEventDescription,
     getJapaneseHolidays: getJapaneseHolidays
   };
 })();

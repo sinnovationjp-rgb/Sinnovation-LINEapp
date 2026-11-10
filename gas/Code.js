@@ -168,7 +168,7 @@ function approveReservation(id, editedData) {
 
       // editedDataは承認画面のフォームから届く値。LINE UserIdなどフォームにない項目まで
       // 上書きされないよう、フォームが実際に持つ項目だけを許可リストとして反映する
-      const EDITABLE_FIELDS = ['予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名（カタカナ）', '電話番号', 'メールアドレス', '備考'];
+      const EDITABLE_FIELDS = ['予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名（カタカナ）', '電話番号', 'メールアドレス', '備考', 'スタッフメモ'];
       const safeEdits = {};
       EDITABLE_FIELDS.forEach((key) => {
         if (editedData && Object.prototype.hasOwnProperty.call(editedData, key)) {
@@ -193,7 +193,8 @@ function approveReservation(id, editedData) {
         '氏名（カタカナ）': confirmed['氏名（カタカナ）'],
         '電話番号': confirmed['電話番号'],
         'メールアドレス': confirmed['メールアドレス'],
-        '備考': confirmed['備考']
+        '備考': confirmed['備考'],
+        'スタッフメモ': confirmed['スタッフメモ']
       });
 
       try {
@@ -203,7 +204,7 @@ function approveReservation(id, editedData) {
           space: confirmed['スペース'],
           drink: confirmed['飲み放題'],
           name: confirmed['氏名（カタカナ）'],
-          note: confirmed['備考']
+          description: buildEventDescription_(confirmed)
         });
         SheetService.updateReservation(id, { 'カレンダーイベントID': event.getId() });
       } catch (calendarErr) {
@@ -663,6 +664,55 @@ function updateReservationHeadcount(id, headcount, sessionToken) {
   }
 }
 
+// スタッフメモ（社内向けの説明。お客様には送らない）の最大文字数
+const STAFF_MEMO_MAX_LENGTH = 2000;
+
+// カレンダー予定の説明欄: お客様の備考とスタッフメモをまとめる（電話番号などは入れない）
+function buildEventDescription_(reservation) {
+  const lines = [];
+  if (reservation['備考']) lines.push(`備考: ${reservation['備考']}`);
+  if (reservation['スタッフメモ']) lines.push(`スタッフメモ: ${reservation['スタッフメモ']}`);
+  return lines.join('\n');
+}
+
+// 管理画面からスタッフメモを編集する（管理者のみ）。確定済みでカレンダーに予定がある場合は説明欄も更新する。
+// 社内向けのメモなので、お客様・Discordへの通知はしない
+function updateReservationStaffMemo(id, memo, sessionToken) {
+  try {
+    if (!isAuthorizedAdmin_(sessionToken)) {
+      throw new Error('アクセス権がありません');
+    }
+    if (!id) {
+      throw new Error('予約IDが指定されていません');
+    }
+    const text = String(memo == null ? '' : memo).trim();
+    if (text.length > STAFF_MEMO_MAX_LENGTH) {
+      throw new Error(`スタッフメモは${STAFF_MEMO_MAX_LENGTH}文字以内で入力してください`);
+    }
+
+    const updated = withReservationLock_(() => {
+      const reservation = SheetService.getReservationById(id);
+      if (!reservation) {
+        throw new Error(`予約ID ${id} が見つかりません`);
+      }
+      SheetService.updateReservation(id, { 'スタッフメモ': text });
+      const next = Object.assign({}, reservation, { 'スタッフメモ': text });
+      if (reservation['ステータス'] === '確定' && reservation['カレンダーイベントID']) {
+        try {
+          CalendarService.updateEventDescription(reservation['カレンダーイベントID'], buildEventDescription_(next));
+        } catch (calendarErr) {
+          console.error(`updateReservationStaffMemo: カレンダーの予定の説明更新に失敗しました（予約ID ${id}）`, calendarErr);
+        }
+      }
+      return next;
+    });
+    return { success: true, reservation: JSON.parse(JSON.stringify(updated)) };
+  } catch (err) {
+    console.error('updateReservationStaffMemo failed', err);
+    return { success: false, error: String(err.message || err) };
+  }
+}
+
 function cancelReservation(id, sessionToken) {
   try {
     if (!isAuthorizedAdmin_(sessionToken)) {
@@ -761,6 +811,7 @@ function createReservationByAdmin(data, sessionToken) {
       phone: String(input.phone || '').trim(),
       email: email,
       note: String(input.note || '').trim(),
+      staffMemo: String(input.staffMemo || '').trim().slice(0, STAFF_MEMO_MAX_LENGTH),
       userId: ''
     };
     const id = withReservationLock_(() => SheetService.addProvisionalReservation(reservationData));

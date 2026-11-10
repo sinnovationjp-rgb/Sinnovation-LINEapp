@@ -252,6 +252,7 @@ Sinnovation-LINEapp/
 | 12 | LINE UserId | `U`で始まる33文字 / 空 | 登録時 | LIFFで取得。管理画面からの登録・LIFF未ログインでは空 |
 | 13 | 登録日時 | Date | 登録時 | 行を追加した日時 |
 | 14 | カレンダーイベントID | 文字列 / 空 | 承認時 | `CalendarEvent.getId()` の値。キャンセル・人数変更で使う |
+| 15 | スタッフメモ | 文字列 / 空 | 承認時・代理登録時・管理画面での編集時 | 社内向けのメモ（2000文字まで）。お客様・Discordには送らない。カレンダー予定の説明欄に載る |
 
 #### 読み書きの実装
 
@@ -393,6 +394,7 @@ curl -sL -H 'Content-Type: text/plain;charset=utf-8' -d '{"datetime":"2026-11-20
 | `approveReservation(id, editedData)` | 承認画面・管理者画面 | **なし**（[22章](#22-既知の制約注意点)） | `{success}` | 承認して確定 |
 | `cancelReservation(id, sessionToken)` | 管理者画面 | 管理者 | `{success}` | 却下・キャンセル |
 | `updateReservationHeadcount(id, headcount, sessionToken)` | 管理者画面 | 管理者 | `{success, reservation}` | 人数変更 |
+| `updateReservationStaffMemo(id, memo, sessionToken)` | 管理者画面 | 管理者 | `{success, reservation}` | スタッフメモの編集（確定済みならカレンダーの説明欄も更新。通知はしない） |
 | `createReservationByAdmin(data, sessionToken)` | 管理者画面 | 管理者 | `{success, reservation}` | 予約の代理登録 |
 | `getAllUsers(sessionToken)` | 管理者画面 | 管理者 | `{success, users}` | 管理者・閲覧者の一覧 |
 | `addUser(email, role, sessionToken)` | 管理者画面 | 管理者 | `{success, users}` | ユーザー追加 |
@@ -409,7 +411,7 @@ curl -sL -H 'Content-Type: text/plain;charset=utf-8' -d '{"datetime":"2026-11-20
 
 承認画面のフォームの値（`{列名: 値}`）です。反映できるのは次の9列だけです（`EDITABLE_FIELDS` による許可リスト）。
 
-`予約日時, 人数, スペース, 飲み放題, ご利用履歴, 氏名（カタカナ）, 電話番号, メールアドレス, 備考`
+`予約日時, 人数, スペース, 飲み放題, ご利用履歴, 氏名（カタカナ）, 電話番号, メールアドレス, 備考, スタッフメモ`
 
 `ID`・`ステータス`・`LINE UserId`・`登録日時`・`カレンダーイベントID` は送られてきても無視します。管理者画面の「承認して確定」は `editedData` に `{}` を渡し、シートの内容のまま確定します。**人数の範囲チェックは承認時には行いません**（[22章](#22-既知の制約注意点)）。
 
@@ -961,7 +963,7 @@ cd frontend && python3 -m http.server 8000
 |---|---|
 | タイトル | `[スペース] 氏名様（人数名／飲み放題あり）`。飲み放題が空なら「／飲み放題…」を付けない |
 | 開始・終了 | 予約日時から1時間 |
-| 説明欄 | 備考（電話番号は入れない） |
+| 説明欄 | 「備考: …」と「スタッフメモ: …」（電話番号は入れない）。メモ編集時に更新 |
 | 作成 | 承認時。イベントIDをシートに保存 |
 | タイトル更新 | 人数変更時（確定済みのみ） |
 | 削除 | 確定済みをキャンセルしたとき |

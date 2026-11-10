@@ -160,6 +160,11 @@ function approveReservation(id, editedData) {
         console.warn(`approveReservation: 予約ID ${id} は既に確定済みのため、処理をスキップします`);
         return { alreadyProcessed: true };
       }
+      if (reservation['ステータス'] === 'キャンセル') {
+        // 古い承認リンクから押された場合などに、キャンセル（却下）済みの予約が確定に戻り、
+        // カレンダー登録やお客様への確定通知が行われてしまうのを防ぐ
+        throw new Error('この予約はキャンセル（却下）済みのため承認できません。改めて受け付ける場合は、管理画面の「予約を追加」から登録してください');
+      }
 
       // editedDataは承認画面のフォームから届く値。LINE UserIdなどフォームにない項目まで
       // 上書きされないよう、フォームが実際に持つ項目だけを許可リストとして反映する

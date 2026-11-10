@@ -99,6 +99,7 @@
 
       <div id="form-content">
         <span class="pill">仮予約・承認待ち</span>
+        <p id="status-notice" class="not-found" style="display:none;"></p>
 
         <form id="approval-form">
           <div class="card">
@@ -166,6 +167,15 @@
     if (!reservation) {
       document.getElementById('not-found').style.display = 'block';
       document.getElementById('form-content').style.display = 'none';
+    } else if (reservation['ステータス'] !== '仮予約') {
+      // 確定済み・キャンセル済みの予約は承認画面から操作させない（古い承認リンクからの誤操作防止）
+      document.querySelector('.pill').style.display = 'none';
+      form.style.display = 'none';
+      const notice = document.getElementById('status-notice');
+      notice.textContent = reservation['ステータス'] === '確定'
+        ? 'この予約はすでに確定済みです。'
+        : 'この予約はキャンセル（却下）済みのため承認できません。改めて受け付ける場合は、管理画面の「予約を追加」から登録してください。';
+      notice.style.display = 'block';
     } else {
       Object.keys(reservation).forEach((key) => {
         const field = form.elements[key];

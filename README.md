@@ -1,6 +1,6 @@
 # SPACE予約システム — Claude Code セットアップガイド
 
-> システムの仕組み（構成・データ・API・認証・運用）は [docs/developer-spec.md](docs/developer-spec.md)、開発の経緯・判断の理由・残作業は [docs/saito-ryota-memo.md](docs/saito-ryota-memo.md)（齋藤稜太メモ）にまとめています。
+> システムの仕組み（構成・データ・API・認証・運用）をまとめた「開発者向け仕様書」と、開発の経緯・判断の理由・残作業をまとめた「齋藤稜太メモ」は、GitHubではなくGoogleドキュメントで管理しています（場所は担当者に確認してください）。
 
 LINE LIFFを使ったスペース予約システムをClaude Codeで構築するための手引きです。
 
@@ -80,8 +80,6 @@ line-space-reservation/
 │   ├── AdminLoginPage.html
 │   └── Trigger.js
 ├── docs/
-│   ├── developer-spec.md（開発者向け仕様書）
-│   ├── saito-ryota-memo.md（齋藤稜太メモ: 経緯・判断の記録・残作業）
 │   ├── spec.md
 │   └── test-checklist.md
 ├── .clasp.json

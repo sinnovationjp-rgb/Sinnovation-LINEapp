@@ -49,7 +49,7 @@ function isValidEmail_(email) {
 
 // 1件の予約で受け付ける人数の上限（1日の合計人数の目安 SheetService.DAILY_CAPACITY とは別）。
 // frontend/js/calendar.js の人数ボタンもこの人数まで表示する
-const MAX_HEADCOUNT = 15;
+const MAX_HEADCOUNT = 40;
 
 function isValidHeadcount_(value) {
   const n = Number(value);
@@ -588,6 +588,9 @@ function renderAdminPage_(sessionToken) {
   template.reservations = SheetService.getAllReservations();
   template.role = role;
   template.sessionToken = googleRole ? null : sessionToken;
+  // 人数の上限は画面に直書きせず、サーバーの定数を渡す（変えるときはCode.jsとSheetService.jsだけでよい）
+  template.maxHeadcount = MAX_HEADCOUNT;
+  template.dailyCapacity = SheetService.DAILY_CAPACITY;
   // カレンダー表示で祝日を定休日として表示するため、前後の期間の祝日を渡す（取得失敗時は空＝日曜のみ）
   const holidayStart = new Date();
   holidayStart.setMonth(holidayStart.getMonth() - 6, 1);

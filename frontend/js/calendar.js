@@ -10,7 +10,7 @@ const reserveState = {
 };
 
 // 1件の予約で選べる人数の上限（gas/Code.jsのMAX_HEADCOUNTと同じ）
-const MAX_HEADCOUNT = 15;
+const MAX_HEADCOUNT = 40;
 
 function getDummyAvailability() {
   const today = new Date();

@@ -1,7 +1,7 @@
 var SheetService = (function () {
   const SHEET_NAME = '予約一覧';
   const HEADERS = ['ID', 'ステータス', '予約日時', '人数', 'スペース', '飲み放題', 'ご利用履歴', '氏名（カタカナ）', '電話番号', 'メールアドレス', '備考', 'LINE UserId', '登録日時', 'カレンダーイベントID'];
-  const DAILY_CAPACITY = 15; // 1日あたりの合計人数の上限（スペース合算、目安表示用）
+  const DAILY_CAPACITY = 40; // 1日あたりの合計人数の上限（スペース合算、目安表示用）
 
   function getSheet_() {
     const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
@@ -274,6 +274,7 @@ var SheetService = (function () {
     updateReservation: updateReservation,
     getConfirmedReservationsForDate: getConfirmedReservationsForDate,
     getAvailability: getAvailability,
+    DAILY_CAPACITY: DAILY_CAPACITY,
     getAllReservations: getAllReservations,
     fixPhoneNumberLeadingZeros: fixPhoneNumberLeadingZeros,
     archiveOldReservations: archiveOldReservations

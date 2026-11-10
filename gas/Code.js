@@ -568,6 +568,12 @@ function renderAdminPage_(sessionToken) {
   template.reservations = SheetService.getAllReservations();
   template.role = role;
   template.sessionToken = googleRole ? null : sessionToken;
+  // カレンダー表示で祝日を定休日として表示するため、前後の期間の祝日を渡す（取得失敗時は空＝日曜のみ）
+  const holidayStart = new Date();
+  holidayStart.setMonth(holidayStart.getMonth() - 6, 1);
+  const holidayEnd = new Date();
+  holidayEnd.setMonth(holidayEnd.getMonth() + BOOKING_MONTHS_AHEAD + 2, 1);
+  template.holidays = getHolidayMap_(holidayStart, holidayEnd);
   return template.evaluate().setTitle('予約管理');
 }
 

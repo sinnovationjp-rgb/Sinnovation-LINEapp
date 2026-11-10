@@ -214,6 +214,58 @@
     .table-scroll { overflow-x: visible; }
     table { min-width: 0; }
   }
+  /* ---- 表示切り替え・カレンダー表示 ---- */
+  .view-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+  .seg button { border: 0; background: none; padding: 7px 16px; border-radius: 999px; font: inherit; font-weight: 700; font-size: 0.82rem; color: var(--text-muted); cursor: pointer; }
+  .seg button.is-active { background: var(--accent); color: #fff; }
+  .cal-bar { display: none; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; }
+  .cal-bar.is-open { display: flex; }
+  .monthnav { display: flex; align-items: center; gap: 6px; font-weight: 700; white-space: nowrap; }
+  .monthnav button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 16px; color: var(--text); }
+  .monthnav .today-btn { width: auto; border-radius: 999px; padding: 0 12px; font: inherit; font-size: 0.8rem; font-weight: 700; }
+  .cal-legend { display: flex; gap: 12px; font-size: 12px; color: var(--text-muted); margin-left: auto; flex-wrap: wrap; align-items: center; }
+  .cal-legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+  .cal-view { display: none; grid-template-columns: 1fr 320px; gap: 14px; }
+  .cal-view.is-open { display: grid; }
+  .cal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+  .cal-dow, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cal-dow div { padding: 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-align: center; border-bottom: 1px solid var(--border); }
+  .cal-dow .sun { color: var(--danger); } .cal-dow .sat { color: var(--pending); }
+  .cal-cell { min-height: 112px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 6px; cursor: pointer; min-width: 0; }
+  .cal-cell:nth-child(7n) { border-right: 0; }
+  .cal-cell.is-out { background: #faf8f4; color: #c5bdae; }
+  .cal-cell.is-closed { background: #f0ece4; }
+  .cal-cell.is-sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .cal-d { font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+  .cal-cell.is-today .cal-d > span:first-child { background: var(--accent); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; }
+  .cal-cap { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+  .cal-cap.is-full { color: var(--danger); }
+  .cal-bar-line { height: 3px; background: #eee8dc; border-radius: 2px; margin: 4px 0 5px; }
+  .cal-bar-line i { display: block; height: 100%; background: var(--ok); border-radius: 2px; }
+  .cal-bar-line i.is-full { background: var(--danger); }
+  .cal-ev { font-size: 11px; border-radius: 5px; padding: 2px 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cal-ev.ok { background: var(--ok-soft); color: var(--ok); }
+  .cal-ev.pending { background: var(--pending-soft); color: var(--pending); border: 1px dashed var(--pending); }
+  .cal-ev.danger { background: var(--danger-soft); color: var(--danger); text-decoration: line-through; opacity: .7; }
+  .cal-more, .cal-closed-tag { font-size: 10px; color: var(--text-muted); }
+  .cal-dots { display: none; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
+  .cal-dots i { width: 7px; height: 7px; border-radius: 2px; }
+  .cal-side { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; align-self: start; box-shadow: var(--shadow); }
+  .cal-side h3 { margin: 0 0 4px; font-family: "Zen Kaku Gothic New", sans-serif; }
+  .cal-side .sum { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+  .cal-item { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+  .cal-item:hover { border-color: var(--accent); }
+  .cal-item .t { font-weight: 700; font-size: 14px; } .cal-item .m { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .cal-item .pill { float: right; }
+  .cal-side .gcal { display: block; margin-top: 10px; font-size: 12px; color: var(--accent); text-align: center; }
+  @media (max-width: 860px) {
+    .cal-view.is-open { grid-template-columns: 1fr; }
+    .cal-cell { min-height: 64px; padding: 4px; }
+    .cal-ev, .cal-more, .cal-closed-tag, .cal-bar-line, .cal-cap { display: none; }
+    .cal-legend { margin-left: 0; }
+    .cal-dots { display: flex; }
+  }
 </style>
 </head>
 <body>
@@ -250,7 +302,29 @@
     </div>
   </div>
 
-  <div class="controls">
+  <div class="view-bar">
+    <div class="seg" id="view-seg">
+      <button type="button" data-view="list" class="is-active">一覧</button>
+      <button type="button" data-view="calendar">カレンダー</button>
+    </div>
+    <div class="cal-bar" id="cal-bar">
+      <div class="monthnav">
+        <button type="button" id="cal-prev" aria-label="前月">‹</button>
+        <span id="cal-month-label"></span>
+        <button type="button" id="cal-next" aria-label="翌月">›</button>
+        <button type="button" class="today-btn" id="cal-today">今日</button>
+      </div>
+      <div class="cal-legend">
+        <span><i class="dot" style="background:var(--ok)"></i>確定</span>
+        <span><i class="dot" style="background:var(--pending)"></i>仮予約</span>
+        <span><i class="dot" style="background:var(--danger)"></i>キャンセル</span>
+        <span><i class="dot" style="background:#f0ece4;border:1px solid #ccc"></i>定休日</span>
+        <label><input type="checkbox" id="cal-show-cancel"> キャンセルも表示</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls" id="list-controls">
     <div class="tabs" id="tabs"></div>
     <div class="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -258,7 +332,7 @@
     </div>
   </div>
 
-  <div class="table-card">
+  <div class="table-card" id="list-view">
     <div class="table-scroll">
       <table>
         <thead>
@@ -269,6 +343,14 @@
         <tbody id="table-body"></tbody>
       </table>
     </div>
+  </div>
+
+  <div class="cal-view" id="cal-view">
+    <div class="cal-card">
+      <div class="cal-dow"><div class="sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="sat">土</div></div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+    <aside class="cal-side" id="cal-side"></aside>
   </div>
 </div>
 
@@ -388,6 +470,8 @@
     { key: '確定', label: '確定' },
     { key: 'キャンセル', label: 'キャンセル' }
   ];
+  // 定休日の判定用（サーバーで取得した祝日 { 'yyyy-MM-dd': '祝日名' }。範囲外の日は日曜のみで判定）
+  var holidays = <?!= toSafeJson_(holidays) ?> || {};
   var activeTab = 'all';
   var searchTerm = '';
 
@@ -460,6 +544,7 @@
   }
 
   function renderTable() {
+    renderCalendar();
     var list = reservations.filter(function (r) {
       if (activeTab !== 'all' && r['ステータス'] !== activeTab) return false;
       if (searchTerm) {
@@ -804,9 +889,9 @@
     document.getElementById('add-status-hint').textContent = STATUS_HINTS[status];
     document.getElementById('add-submit-btn').textContent = status === '確定' ? '確定で登録する' : '仮予約で登録する';
   }
-  function openAddModal() {
+  function openAddModal(dateISO) {
     document.getElementById('add-form').reset();
-    document.getElementById('add-date').value = todayISO();
+    document.getElementById('add-date').value = typeof dateISO === 'string' ? dateISO : todayISO();
     document.getElementById('add-error').textContent = '';
     document.getElementById('add-submit-btn').disabled = false;
     updateAddStatusHint();
@@ -881,9 +966,144 @@
     }).createReservationByAdmin(data, sessionToken);
   });
 
+  // ---- カレンダー表示（予約一覧と同じデータを月カレンダーに並べる） ----
+  var calView = 'list';
+  var calYear = new Date().getFullYear();
+  var calMonth = new Date().getMonth();
+  var calSelected = todayISO();
+  var CAL_STATUS_CLASS = { '確定': 'ok', '仮予約': 'pending', 'キャンセル': 'danger' };
+  var CAL_DAILY_CAPACITY = 15;
+
+  function isoOf(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function timeOf(value) {
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  function closedReasonOf(dateStr) {
+    var d = new Date(dateStr + 'T00:00:00');
+    if (d.getDay() === 0) return '日曜定休';
+    return holidays[dateStr] ? '祝日（' + holidays[dateStr] + '）' : '';
+  }
+  function showCancelled() {
+    return document.getElementById('cal-show-cancel').checked;
+  }
+  function reservationsOn(dateStr, includeCancelled) {
+    return reservations.filter(function (r) {
+      return dateOnly(r['予約日時']) === dateStr && (includeCancelled || r['ステータス'] !== 'キャンセル');
+    }).sort(function (a, b) { return timeOf(a['予約日時']).localeCompare(timeOf(b['予約日時'])); });
+  }
+  function headcountOn(dateStr, status) {
+    return reservations.reduce(function (sum, r) {
+      return sum + (dateOnly(r['予約日時']) === dateStr && r['ステータス'] === status ? (Number(r['人数']) || 0) : 0);
+    }, 0);
+  }
+
+  function setView(view) {
+    calView = view;
+    document.querySelectorAll('#view-seg button').forEach(function (b) {
+      b.classList.toggle('is-active', b.dataset.view === view);
+    });
+    var isCal = view === 'calendar';
+    document.getElementById('list-controls').style.display = isCal ? 'none' : '';
+    document.getElementById('list-view').style.display = isCal ? 'none' : '';
+    document.getElementById('cal-bar').classList.toggle('is-open', isCal);
+    document.getElementById('cal-view').classList.toggle('is-open', isCal);
+    try { localStorage.setItem('adminView', view); } catch (e) {}
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    if (calView !== 'calendar') return;
+    document.getElementById('cal-month-label').textContent = calYear + '年' + (calMonth + 1) + '月';
+    var grid = document.getElementById('cal-grid');
+    var today = todayISO();
+    var first = new Date(calYear, calMonth, 1);
+    var start = new Date(calYear, calMonth, 1 - first.getDay());
+    var html = '';
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var ds = isoOf(d);
+      var list = reservationsOn(ds, showCancelled());
+      var total = headcountOn(ds, '確定');
+      var full = total >= CAL_DAILY_CAPACITY;
+      var closed = closedReasonOf(ds);
+      var cls = 'cal-cell' + (d.getMonth() !== calMonth ? ' is-out' : '') + (closed ? ' is-closed' : '') +
+        (ds === today ? ' is-today' : '') + (ds === calSelected ? ' is-sel' : '');
+      html += '<div class="' + cls + '" data-date="' + ds + '">' +
+        '<div class="cal-d"><span>' + d.getDate() + '</span>' +
+          (total ? '<span class="cal-cap' + (full ? ' is-full' : '') + '">' + total + '/' + CAL_DAILY_CAPACITY + '名</span>' : '') + '</div>' +
+        (total ? '<div class="cal-bar-line"><i class="' + (full ? 'is-full' : '') + '" style="width:' + Math.min(100, total / CAL_DAILY_CAPACITY * 100) + '%"></i></div>' : '') +
+        (closed ? '<div class="cal-closed-tag">' + escapeHtml_(closed) + '</div>' : '');
+      list.slice(0, 3).forEach(function (r) {
+        var name = String(r['氏名（カタカナ）'] || '').split(/\s+/)[0];
+        html += '<div class="cal-ev ' + CAL_STATUS_CLASS[r['ステータス']] + '">' +
+          escapeHtml_(timeOf(r['予約日時']) + ' ' + name + ' ' + (r['人数'] || '') + '名') + '</div>';
+      });
+      if (list.length > 3) html += '<div class="cal-more">他' + (list.length - 3) + '件</div>';
+      html += '<div class="cal-dots">' + list.map(function (r) {
+        return '<i style="background:var(--' + CAL_STATUS_CLASS[r['ステータス']] + ')"></i>';
+      }).join('') + '</div></div>';
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll('.cal-cell').forEach(function (cell) {
+      cell.addEventListener('click', function () {
+        calSelected = cell.dataset.date;
+        renderCalendar();
+      });
+    });
+    renderCalendarSide();
+  }
+
+  function renderCalendarSide() {
+    var side = document.getElementById('cal-side');
+    var d = new Date(calSelected + 'T00:00:00');
+    var list = reservationsOn(calSelected, showCancelled());
+    var total = headcountOn(calSelected, '確定');
+    var pending = headcountOn(calSelected, '仮予約');
+    var closed = closedReasonOf(calSelected);
+    var html = '<h3>' + (d.getMonth() + 1) + '月' + d.getDate() + '日(' + '日月火水木金土'[d.getDay()] + ')</h3>' +
+      '<div class="sum">' + (closed ? escapeHtml_(closed) + ' ・ ' : '') + '確定 ' + total + '/' + CAL_DAILY_CAPACITY + '名' +
+      (pending ? '（仮予約 +' + pending + '名）' : '') + '</div>';
+    html += list.length ? list.map(function (r) {
+      return '<div class="cal-item" data-id="' + escapeHtml_(r['ID']) + '">' +
+        '<span class="pill ' + statusPillClass(r['ステータス']) + '">' + escapeHtml_(r['ステータス']) + '</span>' +
+        '<div class="t">' + escapeHtml_(timeOf(r['予約日時']) + '　' + (r['氏名（カタカナ）'] || '（氏名未入力）')) + '</div>' +
+        '<div class="m">' + escapeHtml_((r['人数'] || '') + '名 ・ ' + (String(r['スペース'] || '未定').replace('・スペース', ''))) + '</div></div>';
+    }).join('') : '<div class="sum">予約はありません</div>';
+    if (myRole === 'admin') {
+      html += '<button type="button" class="admin-btn primary" id="cal-add-btn" style="width:100%;justify-content:center;margin-top:6px;">＋ この日に予約を追加</button>';
+    }
+    html += '<a class="gcal" target="_blank" rel="noopener" href="https://calendar.google.com/calendar/r/day/' +
+      calSelected.replace(/-/g, '/') + '">Googleカレンダーで開く ↗</a>';
+    side.innerHTML = html;
+    side.querySelectorAll('.cal-item').forEach(function (item) {
+      item.addEventListener('click', function () { openPanel(item.dataset.id); });
+    });
+    var addBtn = document.getElementById('cal-add-btn');
+    if (addBtn) addBtn.addEventListener('click', function () { openAddModal(calSelected); });
+  }
+
+  document.querySelectorAll('#view-seg button').forEach(function (b) {
+    b.addEventListener('click', function () { setView(b.dataset.view); });
+  });
+  document.getElementById('cal-prev').addEventListener('click', function () {
+    calMonth -= 1; if (calMonth < 0) { calMonth = 11; calYear -= 1; } renderCalendar();
+  });
+  document.getElementById('cal-next').addEventListener('click', function () {
+    calMonth += 1; if (calMonth > 11) { calMonth = 0; calYear += 1; } renderCalendar();
+  });
+  document.getElementById('cal-today').addEventListener('click', function () {
+    var now = new Date(); calYear = now.getFullYear(); calMonth = now.getMonth(); calSelected = todayISO(); renderCalendar();
+  });
+  document.getElementById('cal-show-cancel').addEventListener('change', renderCalendar);
+
   renderTabs();
   renderStats();
   renderTable();
+  try { if (localStorage.getItem('adminView') === 'calendar') setView('calendar'); } catch (e) {}
 </script>
 </body>
 </html>

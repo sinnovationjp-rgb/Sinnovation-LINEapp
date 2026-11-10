@@ -112,6 +112,9 @@
   .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 0.88rem; padding: 2px 0; margin: 0; }
   .kv dt { color: var(--text-muted); flex-shrink: 0; }
   .kv dd { margin: 0; text-align: right; font-weight: 500; }
+  .note-box.memo-box { background: #fffaf0; border-color: #ecdcbf; }
+  .memo-editor textarea { width: 100%; font: inherit; font-size: 0.85rem; line-height: 1.5; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 10px; resize: vertical; min-height: 90px; }
+  .memo-editor .row { display: flex; gap: 6px; justify-content: flex-end; align-items: center; margin-top: 6px; }
   .note-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap; }
   .panel-foot { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
   .btn { flex: 1; border: none; border-radius: 10px; padding: 11px 14px; font: inherit; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: filter .15s, background .15s; }
@@ -297,7 +300,7 @@
     <div class="stat"><span class="label">今月の確定</span><span class="value tabular" id="stat-month">—</span></div>
     <div class="stat">
       <span class="label">本日の合計人数</span>
-      <span class="value tabular"><span id="stat-capacity">—</span><small> / 15名</small></span>
+      <span class="value tabular"><span id="stat-capacity">—</span><small id="stat-capacity-max"></small></span>
       <div class="cap-bar"><i id="cap-bar-fill" style="width:0%"></i></div>
     </div>
   </div>
@@ -385,6 +388,10 @@
       <h3>備考</h3>
       <div class="note-box" id="d-note"></div>
     </div>
+    <div class="field-group">
+      <h3 style="display:flex;align-items:center;justify-content:space-between;">スタッフメモ<span id="memo-actions"></span></h3>
+      <div id="memo-body"></div>
+    </div>
   </div>
   <div class="panel-foot" id="panel-actions"></div>
 </aside>
@@ -430,7 +437,7 @@
     <div class="form-grid">
       <div class="form-field"><label for="add-date">日付<span class="req">*</span></label><input type="date" id="add-date" required></div>
       <div class="form-field"><label for="add-time">時刻<span class="req">*</span></label><input type="time" id="add-time" step="900" required></div>
-      <div class="form-field"><label for="add-headcount">人数<span class="req">*</span></label><input type="number" id="add-headcount" min="1" max="15" step="1" inputmode="numeric" required></div>
+      <div class="form-field"><label for="add-headcount">人数<span class="req">*</span></label><input type="number" id="add-headcount" min="1" step="1" inputmode="numeric" required></div>
       <div class="form-field"><label for="add-space">スペース</label>
         <select id="add-space">
           <option value="">未定</option>
@@ -447,6 +454,7 @@
       <div class="form-field full"><label for="add-name">氏名（カタカナ）<span class="req">*</span></label><input type="text" id="add-name" autocomplete="off"></div>
       <div class="form-field"><label for="add-phone">電話番号</label><input type="tel" id="add-phone" autocomplete="off"></div>
       <div class="form-field"><label for="add-email">メールアドレス</label><input type="email" id="add-email" autocomplete="off"></div>
+      <div class="form-field full"><label for="add-staff-memo">スタッフメモ（社内向け）</label><textarea id="add-staff-memo" rows="2" maxlength="2000"></textarea></div>
       <div class="form-field full"><label for="add-note">備考</label><textarea id="add-note" rows="2" placeholder="例: 電話で受付、Instagram DM経由 など"></textarea></div>
     </div>
     <div class="modal-error" id="add-error"></div>
@@ -472,6 +480,11 @@
   ];
   // 定休日の判定用（サーバーで取得した祝日 { 'yyyy-MM-dd': '祝日名' }。範囲外の日は日曜のみで判定）
   var holidays = <?!= toSafeJson_(holidays) ?> || {};
+  // 1件の予約の人数上限（Code.jsのMAX_HEADCOUNT）と、1日の合計人数の目安（SheetService.DAILY_CAPACITY）
+  var MAX_HEADCOUNT = <?!= toSafeJson_(maxHeadcount) ?>;
+  var DAILY_CAPACITY = <?!= toSafeJson_(dailyCapacity) ?>;
+  document.getElementById('stat-capacity-max').textContent = ' / ' + DAILY_CAPACITY + '名';
+  document.getElementById('add-headcount').max = MAX_HEADCOUNT;
   var activeTab = 'all';
   var searchTerm = '';
 
@@ -540,7 +553,7 @@
     document.getElementById('stat-pending').textContent = pendingCount + ' 件';
     document.getElementById('stat-month').textContent = monthConfirmed + ' 件';
     document.getElementById('stat-capacity').textContent = todayHeadcount;
-    document.getElementById('cap-bar-fill').style.width = Math.min(100, (todayHeadcount / 15) * 100) + '%';
+    document.getElementById('cap-bar-fill').style.width = Math.min(100, (todayHeadcount / DAILY_CAPACITY) * 100) + '%';
   }
 
   function renderTable() {
@@ -606,6 +619,7 @@
       : '<span class="badge-liff off">● 未連携（通知不可）</span>';
     document.getElementById('d-created').textContent = fmtDateShort(r['登録日時']);
     document.getElementById('d-note').textContent = r['備考'] || '（備考なし）';
+    renderStaffMemo(r);
 
     var actions = document.getElementById('panel-actions');
     if (myRole !== 'admin') {
@@ -661,7 +675,7 @@
     document.getElementById('hc-edit').addEventListener('click', function () {
       el.innerHTML =
         '<span class="hc-editor">' +
-          '<input type="number" id="hc-input" min="1" max="15" step="1" inputmode="numeric" value="' + escapeHtml_(r['人数'] || '') + '">名' +
+          '<input type="number" id="hc-input" min="1" max="' + MAX_HEADCOUNT + '" step="1" inputmode="numeric" value="' + escapeHtml_(r['人数'] || '') + '">名' +
           '<button type="button" class="hc-save-btn" id="hc-save">保存</button>' +
           '<button type="button" class="hc-cancel-btn" id="hc-cancel">取消</button>' +
         '</span>' +
@@ -677,8 +691,8 @@
       document.getElementById('hc-save').addEventListener('click', function () {
         var value = Number(input.value);
         var errorEl = document.getElementById('hc-error');
-        if (!Number.isInteger(value) || value < 1 || value > 15) {
-          errorEl.textContent = '1〜15名で入力してください';
+        if (!Number.isInteger(value) || value < 1 || value > MAX_HEADCOUNT) {
+          errorEl.textContent = '1〜' + MAX_HEADCOUNT + '名で入力してください';
           return;
         }
         var saveBtn = this;
@@ -703,6 +717,49 @@
           saveBtn.disabled = false;
           saveBtn.textContent = '保存';
         }).updateReservationHeadcount(r['ID'], value, sessionToken);
+      });
+    });
+  }
+
+  // スタッフメモ（社内向け）。管理者は詳細パネルから編集できる。閲覧者は表示のみ
+  function renderStaffMemo(r) {
+    var body = document.getElementById('memo-body');
+    var actions = document.getElementById('memo-actions');
+    var memo = r['スタッフメモ'] || '';
+    body.innerHTML = '<div class="note-box memo-box"></div>';
+    body.firstChild.textContent = memo || '（メモなし）';
+    actions.innerHTML = myRole === 'admin' ? '<button type="button" class="hc-edit-btn" id="memo-edit">' + (memo ? '編集' : '追加') + '</button>' : '';
+    if (myRole !== 'admin') return;
+    document.getElementById('memo-edit').addEventListener('click', function () {
+      actions.innerHTML = '';
+      body.innerHTML =
+        '<div class="memo-editor"><textarea id="memo-input" maxlength="2000" placeholder="お客様には送られない社内向けのメモです"></textarea>' +
+        '<div class="row"><span class="hc-error" id="memo-error"></span>' +
+        '<button type="button" class="hc-cancel-btn" id="memo-cancel">取消</button>' +
+        '<button type="button" class="hc-save-btn" id="memo-save">保存</button></div></div>';
+      var input = document.getElementById('memo-input');
+      input.value = memo;
+      input.focus();
+      document.getElementById('memo-cancel').addEventListener('click', function () { renderStaffMemo(r); });
+      document.getElementById('memo-save').addEventListener('click', function () {
+        var saveBtn = this;
+        var errorEl = document.getElementById('memo-error');
+        saveBtn.disabled = true;
+        saveBtn.textContent = '保存中...';
+        google.script.run.withSuccessHandler(function (res) {
+          if (!res || !res.success) {
+            errorEl.textContent = res && res.error ? res.error : '保存に失敗しました';
+            saveBtn.disabled = false;
+            saveBtn.textContent = '保存';
+            return;
+          }
+          r['スタッフメモ'] = res.reservation['スタッフメモ'] || '';
+          renderStaffMemo(r);
+        }).withFailureHandler(function (err) {
+          errorEl.textContent = err && err.message ? err.message : String(err);
+          saveBtn.disabled = false;
+          saveBtn.textContent = '保存';
+        }).updateReservationStaffMemo(r['ID'], input.value, sessionToken);
       });
     });
   }
@@ -923,7 +980,7 @@
     var headcount = document.getElementById('add-headcount').value;
     var name = document.getElementById('add-name').value.trim();
     if (!date || !time) { errorEl.textContent = '日付と時刻を入力してください'; return; }
-    if (!headcount || Number(headcount) < 1 || Number(headcount) > 15) { errorEl.textContent = '人数は1〜15名で入力してください'; return; }
+    if (!headcount || Number(headcount) < 1 || Number(headcount) > MAX_HEADCOUNT) { errorEl.textContent = '人数は1〜' + MAX_HEADCOUNT + '名で入力してください'; return; }
     if (!name) { errorEl.textContent = '氏名を入力してください'; return; }
 
     var status = selectedAddStatus();
@@ -937,7 +994,8 @@
       name: name,
       phone: document.getElementById('add-phone').value.trim(),
       email: document.getElementById('add-email').value.trim(),
-      note: document.getElementById('add-note').value.trim()
+      note: document.getElementById('add-note').value.trim(),
+      staffMemo: document.getElementById('add-staff-memo').value.trim()
     };
     var submitBtn = document.getElementById('add-submit-btn');
     submitBtn.disabled = true;
@@ -972,7 +1030,7 @@
   var calMonth = new Date().getMonth();
   var calSelected = todayISO();
   var CAL_STATUS_CLASS = { '確定': 'ok', '仮予約': 'pending', 'キャンセル': 'danger' };
-  var CAL_DAILY_CAPACITY = 15;
+  var CAL_DAILY_CAPACITY = DAILY_CAPACITY;
 
   function isoOf(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');

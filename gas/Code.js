@@ -316,6 +316,18 @@ function assertEditorOrTriggerRun_(e, functionName) {
 
 const LOGIN_SESSION_PREFIX = 'LOGIN_SESSION_';
 const LOGIN_SESSION_DAYS = 7;
+// スクリプトプロパティ LONG_LOGIN_EMAILS（カンマ区切り）に載っているアドレスは、ログインリンクの有効期限を
+// 実質無期限（100年）にする。一度リンクを開いてブックマークすれば、以降はログイン操作なしで入れる。
+// 権限は毎回ADMIN_EMAILS/VIEWER_EMAILSと照合し直すので、ユーザー管理から削除すれば即座に入れなくなる（ログアウトでも無効化）
+const LONG_LOGIN_SESSION_DAYS = 36500;
+
+function isLongLoginEmail_(email) {
+  const lower = String(email || '').trim().toLowerCase();
+  if (!lower) return false;
+  return (PropertiesService.getScriptProperties().getProperty('LONG_LOGIN_EMAILS') || '')
+    .split(',')
+    .some((e) => e.trim().toLowerCase() === lower);
+}
 
 // セッショントークンに紐づくメールアドレスを返す（無効・期限切れならnull）
 function getSessionEmail_(sessionToken) {
@@ -378,7 +390,8 @@ function requestAdminLoginLink(email) {
     const props = PropertiesService.getScriptProperties();
     deleteExpiredSessions_(props);
     const token = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '').toLowerCase();
-    const expiresAt = Date.now() + LOGIN_SESSION_DAYS * 24 * 60 * 60 * 1000;
+    const isLongLogin = isLongLoginEmail_(lower);
+    const expiresAt = Date.now() + (isLongLogin ? LONG_LOGIN_SESSION_DAYS : LOGIN_SESSION_DAYS) * 24 * 60 * 60 * 1000;
     props.setProperty(LOGIN_SESSION_PREFIX + token, JSON.stringify({ email: lower, expiresAt: expiresAt }));
 
     const loginUrl = getWebAppUrl_() + '?page=admin&session=' + token;
@@ -391,7 +404,9 @@ function requestAdminLoginLink(email) {
         '',
         loginUrl,
         '',
-        `このリンクは${LOGIN_SESSION_DAYS}日間有効です。他の人には共有しないでください。`,
+        isLongLogin
+          ? 'このリンクは有効期限がありません。ブックマークしておくと、次回からはログインなしで開けます。他の人には絶対に共有しないでください（ログアウトすると無効になります）。'
+          : `このリンクは${LOGIN_SESSION_DAYS}日間有効です。他の人には共有しないでください。`,
         'このメールに心当たりがない場合は、破棄してください。'
       ].join('\n'),
       name: 'oO SPACE'
@@ -923,6 +938,14 @@ function checkConfig() {
 
   const adminEmails = props.getProperty('ADMIN_EMAILS');
   report('ADMIN_EMAILS', !!adminEmails, adminEmails || '（未設定だと管理者画面に誰も入れず、通知失敗時のフォールバックメールも届きません）');
+
+  const longLogin = props.getProperty('LONG_LOGIN_EMAILS');
+  if (longLogin) {
+    const unregistered = longLogin.split(',').map((s) => s.trim()).filter((e) => e && !getRoleForEmail_(e));
+    report('LONG_LOGIN_EMAILS（無期限ログイン）', unregistered.length === 0, unregistered.length
+      ? `${longLogin}（${unregistered.join(', ')} はADMIN_EMAILS/VIEWER_EMAILSに未登録のため入れません）`
+      : longLogin);
+  }
 
   const webAppUrl = (props.getProperty('WEB_APP_URL') || '').trim().split('?')[0];
   if (!webAppUrl) {

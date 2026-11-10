@@ -82,6 +82,9 @@
   tbody tr + tr td { border-top: 1px solid var(--border); }
   tbody td { padding: 13px 16px; font-size: 0.88rem; vertical-align: middle; }
   .cell-name { font-weight: 600; }
+  .cell-memo { max-width: 240px; color: var(--text-muted); font-size: 0.82rem; }
+  .cell-memo span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-item .memo { font-size: 12px; color: var(--text-muted); margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border); white-space: pre-wrap; word-break: break-word; }
 
   .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
   .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
@@ -213,6 +216,9 @@
     tbody tr { border-top: 1px solid var(--border); padding: 12px 4px; }
     tbody tr:first-child { border-top: none; }
     tbody td { padding: 3px 12px; border: none !important; }
+    .cell-memo { max-width: none; }
+    .cell-memo span { white-space: pre-wrap; }
+    tbody td.cell-memo.is-empty { display: none; }
     tbody td[data-label]::before { content: attr(data-label); display: block; font-size: 0.68rem; color: var(--text-muted); margin-bottom: 2px; }
     .table-scroll { overflow-x: visible; }
     table { min-width: 0; }
@@ -331,7 +337,7 @@
     <div class="tabs" id="tabs"></div>
     <div class="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-      <input type="text" id="search-input" placeholder="氏名・電話番号で検索">
+      <input type="text" id="search-input" placeholder="氏名・電話番号・メモで検索">
     </div>
   </div>
 
@@ -340,7 +346,7 @@
       <table>
         <thead>
           <tr>
-            <th>ステータス</th><th>予約日時</th><th>人数</th><th>スペース</th><th>お名前</th><th>電話番号</th><th>飲み放題</th>
+            <th>ステータス</th><th>予約日時</th><th>人数</th><th>スペース</th><th>お名前</th><th>電話番号</th><th>飲み放題</th><th>スタッフメモ</th>
           </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -563,14 +569,15 @@
       if (searchTerm) {
         var name = String(r['氏名（カタカナ）'] || '');
         var phone = String(r['電話番号'] || '');
-        if (name.indexOf(searchTerm) === -1 && phone.indexOf(searchTerm) === -1) return false;
+        var memo = String(r['スタッフメモ'] || '');
+        if (name.indexOf(searchTerm) === -1 && phone.indexOf(searchTerm) === -1 && memo.indexOf(searchTerm) === -1) return false;
       }
       return true;
     }).sort(function (a, b) { return String(a['予約日時']).localeCompare(String(b['予約日時'])); });
 
     var body = document.getElementById('table-body');
     if (list.length === 0) {
-      body.innerHTML = '<tr class="empty-row"><td colspan="7">該当する予約はありません</td></tr>';
+      body.innerHTML = '<tr class="empty-row"><td colspan="8">該当する予約はありません</td></tr>';
       return;
     }
     body.innerHTML = list.map(function (r) {
@@ -582,6 +589,7 @@
         '<td data-label="お名前" class="cell-name">' + escapeHtml_(r['氏名（カタカナ）'] || '') + '</td>' +
         '<td data-label="電話番号" class="tabular">' + escapeHtml_(r['電話番号'] || '') + '</td>' +
         '<td data-label="飲み放題">' + escapeHtml_(r['飲み放題'] || '') + '</td>' +
+        '<td data-label="スタッフメモ" class="cell-memo' + (r['スタッフメモ'] ? '' : ' is-empty') + '" title="' + escapeHtml_(r['スタッフメモ'] || '') + '"><span>' + escapeHtml_(r['スタッフメモ'] || '') + '</span></td>' +
       '</tr>';
     }).join('');
 
@@ -755,6 +763,11 @@
           }
           r['スタッフメモ'] = res.reservation['スタッフメモ'] || '';
           renderStaffMemo(r);
+          // 一覧・カレンダーのメモ表示も更新し、選択中の行の強調を戻す
+          renderTable();
+          document.querySelectorAll('#table-body tr').forEach(function (tr) {
+            tr.classList.toggle('is-selected', tr.dataset.id === String(r['ID']));
+          });
         }).withFailureHandler(function (err) {
           errorEl.textContent = err && err.message ? err.message : String(err);
           saveBtn.disabled = false;
@@ -1129,7 +1142,8 @@
       return '<div class="cal-item" data-id="' + escapeHtml_(r['ID']) + '">' +
         '<span class="pill ' + statusPillClass(r['ステータス']) + '">' + escapeHtml_(r['ステータス']) + '</span>' +
         '<div class="t">' + escapeHtml_(timeOf(r['予約日時']) + '　' + (r['氏名（カタカナ）'] || '（氏名未入力）')) + '</div>' +
-        '<div class="m">' + escapeHtml_((r['人数'] || '') + '名 ・ ' + (String(r['スペース'] || '未定').replace('・スペース', ''))) + '</div></div>';
+        '<div class="m">' + escapeHtml_((r['人数'] || '') + '名 ・ ' + (String(r['スペース'] || '未定').replace('・スペース', ''))) + '</div>' +
+        (r['スタッフメモ'] ? '<div class="memo">📝 ' + escapeHtml_(r['スタッフメモ']) + '</div>' : '') + '</div>';
     }).join('') : '<div class="sum">予約はありません</div>';
     if (myRole === 'admin') {
       html += '<button type="button" class="admin-btn primary" id="cal-add-btn" style="width:100%;justify-content:center;margin-top:6px;">＋ この日に予約を追加</button>';

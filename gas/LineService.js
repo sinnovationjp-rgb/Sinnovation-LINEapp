@@ -34,16 +34,29 @@ var LineService = (function () {
     }
   }
 
-  // 送信に成功すればtrue、失敗すればfalseを返す（呼び出し元がアラート要否を判断できるように）
-  function pushMessage(userId, text) {
+  // 送信に成功すればtrue、失敗すればfalseを返す（呼び出し元がアラート要否を判断できるように）。
+  // log（{ reservationId, kind }）を渡すと、結果を「LINE送信履歴」シートに残す（管理画面の予約の詳細に表示される）
+  function pushMessage(userId, text, log) {
+    const result = sendPush_(userId, text);
+    if (log) {
+      try {
+        SheetService.addLineLog({ reservationId: log.reservationId, kind: log.kind, success: result.ok, text: text, error: result.error });
+      } catch (err) {
+        console.error('LineService.pushMessage: LINE送信履歴の記録に失敗しました', err);
+      }
+    }
+    return result.ok;
+  }
+
+  function sendPush_(userId, text) {
     const token = getAccessToken_();
     if (!token) {
       console.error('LineService.pushMessage: アクセストークンを取得できませんでした（LINE_CHANNEL_ACCESS_TOKEN、またはLINE_CHANNEL_ID/LINE_CHANNEL_SECRETのスクリプトプロパティを確認してください）');
-      return false;
+      return { ok: false, error: 'アクセストークンを取得できませんでした' };
     }
     if (!userId) {
       console.error('LineService.pushMessage: userIdが指定されていません');
-      return false;
+      return { ok: false, error: 'LINE UserIdがありません' };
     }
     try {
       const response = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
@@ -59,16 +72,16 @@ var LineService = (function () {
       const code = response.getResponseCode();
       if (code < 200 || code >= 300) {
         console.error(`LineService.pushMessage: LINE APIがエラーを返しました (status=${code})`, response.getContentText());
-        return false;
+        return { ok: false, error: `status=${code} ${response.getContentText()}` };
       }
-      return true;
+      return { ok: true, error: '' };
     } catch (err) {
       console.error('LineService.pushMessage failed', err);
-      return false;
+      return { ok: false, error: String(err) };
     }
   }
 
-  function pushProvisional(userId, data) {
+  function pushProvisional(userId, data, reservationId) {
     const text = [
       '仮予約を承りました。現時点で予約は確定しておりません。',
       '',
@@ -80,7 +93,7 @@ var LineService = (function () {
       '',
       '内容を確認のうえ、担当者よりLINEにてご連絡いたします。'
     ].join('\n');
-    return pushMessage(userId, text);
+    return pushMessage(userId, text, { reservationId: reservationId, kind: '仮予約受付' });
   }
 
   function pushConfirmation(userId, reservation) {
@@ -95,7 +108,7 @@ var LineService = (function () {
       '',
       'キャンセルをご希望の場合は、このLINEにメッセージでお知らせください。'
     ].join('\n');
-    return pushMessage(userId, text);
+    return pushMessage(userId, text, { reservationId: reservation['ID'], kind: '確定' });
   }
 
   function pushCancellation(userId, reservation, wasConfirmed) {
@@ -108,7 +121,7 @@ var LineService = (function () {
       '',
       'ご不明な点がございましたら店舗までお問い合わせください。'
     ].join('\n');
-    return pushMessage(userId, text);
+    return pushMessage(userId, text, { reservationId: reservation['ID'], kind: wasConfirmed ? 'キャンセル' : '却下' });
   }
 
   // 通知が届かないときの切り分け用。スクリプトプロパティの設定状況とトークン取得の成否をログに出す

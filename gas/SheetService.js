@@ -276,8 +276,52 @@ var SheetService = (function () {
     }
   }
 
+  // ---- LINE送信履歴 ----
+  // システムが自動で送ったLINEメッセージは、LINE公式アカウントのチャット欄に表示されないため、
+  // 送った文面と結果をこのシートに残し、管理画面の予約の詳細で確認できるようにする
+  const LINE_LOG_SHEET_NAME = 'LINE送信履歴';
+  const LINE_LOG_HEADERS = ['送信日時', '予約ID', '種類', '結果', '本文', 'エラー'];
+
+  function getLineLogSheet_() {
+    const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    let sheet = ss.getSheetByName(LINE_LOG_SHEET_NAME);
+    if (!sheet) {
+      sheet = ss.insertSheet(LINE_LOG_SHEET_NAME);
+      sheet.appendRow(LINE_LOG_HEADERS);
+    }
+    return sheet;
+  }
+
+  function addLineLog(entry) {
+    const sheet = getLineLogSheet_();
+    sheet.appendRow([
+      new Date(),
+      sanitizeCell_(String(entry.reservationId || '')),
+      sanitizeCell_(String(entry.kind || '')),
+      entry.success ? '成功' : '失敗',
+      sanitizeCell_(String(entry.text || '')),
+      sanitizeCell_(String(entry.error || '').slice(0, 500))
+    ]);
+  }
+
+  // 指定した予約のLINE送信履歴を古い順に返す（google.script.runで返せるよう日時はISO文字列にする）
+  function getLineLogs(reservationId) {
+    const sheet = getLineLogSheet_();
+    const values = sheet.getDataRange().getValues();
+    const results = [];
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][1]) !== String(reservationId)) continue;
+      const sentAt = values[i][0] instanceof Date ? values[i][0].toISOString() : String(values[i][0] || '');
+      results.push({ sentAt: sentAt, kind: String(values[i][2] || ''), success: values[i][3] === '成功', text: String(values[i][4] || ''), error: String(values[i][5] || '') });
+    }
+    return results;
+  }
+
   return {
     addProvisionalReservation: addProvisionalReservation,
+    addLineLog: addLineLog,
+    getLineLogs: getLineLogs,
     getReservationById: getReservationById,
     updateReservation: updateReservation,
     getConfirmedReservationsForDate: getConfirmedReservationsForDate,

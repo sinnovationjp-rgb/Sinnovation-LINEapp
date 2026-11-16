@@ -10,7 +10,15 @@ function sendReminders(e) {
       const message = buildReminderMessage_(reservation);
       const userId = reservation['LINE UserId'];
       if (userId) {
-        const lineOk = LineService.pushMessage(userId, message, { reservationId: reservation['ID'], kind: '前日リマインド' });
+        const lineText = [
+          '明日のご予約のお知らせです。',
+          '',
+          message,
+          '',
+          '変更・キャンセルをご希望の場合は、このLINEにメッセージでお知らせください。',
+          'ご来店を心よりお待ちしております。'
+        ].join('\n');
+        const lineOk = LineService.pushMessage(userId, lineText, { reservationId: reservation['ID'], kind: '前日リマインド' });
         if (!lineOk) {
           NotifyService.send(`⚠️ 前日リマインドのLINE送信に失敗しました（予約ID ${reservation['ID']}）`);
         }

@@ -34,6 +34,7 @@ function buildReminderMessage_(reservation) {
     `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
     `人数: ${reservation['人数'] || ''}名`,
     `スペース: ${reservation['スペース'] || ''}`,
+    ...buildCharterPriceLines_(reservation['スペース'], reservation['予約日時']),
     `飲み放題: ${reservation['飲み放題'] || ''}`,
     `氏名: ${reservation['氏名（カタカナ）'] || ''}`
   ].join('\n');

@@ -75,6 +75,7 @@ var LineService = (function () {
       `日時: ${data.datetime ? formatDateTimeForDisplay_(data.datetime) : '未入力'}`,
       `人数: ${data.headcount ? data.headcount + '名' : '未入力'}`,
       `スペース: ${data.space || '未入力'}`,
+      ...buildCharterPriceLines_(data.space, data.datetime),
       `飲み放題: ${data.drink || '未入力'}`,
       '',
       '内容を確認のうえ、担当者よりLINEにてご連絡いたします。'
@@ -89,6 +90,7 @@ var LineService = (function () {
       `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
       `人数: ${reservation['人数'] || ''}名`,
       `スペース: ${reservation['スペース'] || ''}`,
+      ...buildCharterPriceLines_(reservation['スペース'], reservation['予約日時']),
       `飲み放題: ${reservation['飲み放題'] || ''}`,
       '',
       'キャンセルをご希望の場合は、このLINEにメッセージでお知らせください。'

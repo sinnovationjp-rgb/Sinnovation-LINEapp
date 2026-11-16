@@ -10,7 +10,9 @@ var CalendarService = (function () {
       throw new Error('CALENDAR_IDのカレンダーが見つからないかアクセス権がありません');
     }
     const start = new Date(reservation.datetime);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    // ラウンジ貸切は3時間、それ以外は1時間の予定として登録する
+    const hours = isLoungeCharter_(reservation.space) ? CHARTER_HOURS : 1;
+    const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
     return calendar.createEvent(buildTitle_(reservation), start, end, { description: reservation.description || '' });
   }
 

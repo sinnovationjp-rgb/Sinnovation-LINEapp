@@ -214,6 +214,31 @@ function buildSummary() {
   `).join('');
 }
 
+// 予約が登録できたら、お客様のLINEから公式アカウントのトークに予約内容を送り、
+// LINE公式アカウントのチャット欄でスタッフが新しい予約に気付けるようにする（お客様が送る扱いなので月の送信通数は使わない）。
+// LIFFアプリのスコープ「chat_message.write」が必要。LINEアプリの外で開いた場合や、
+// グループ・複数人トークから開いた場合は送らない。失敗しても予約自体は完了しているので、ログを残すだけにする
+async function sendReservationToOfficialChat(reservation) {
+  try {
+    if (typeof liff === 'undefined' || !liff.isInClient || !liff.isInClient()) return;
+    const context = liff.getContext && liff.getContext();
+    if (!context || context.type !== 'utou') return;
+    const lines = [
+      '【予約を申し込みました】',
+      `日時: ${reserveState.dateLabel} ${reserveState.time}`,
+      `人数: ${reservation.headcount}名`,
+      `スペース: ${reservation.space}`,
+      ...(reservation.space === LOUNGE_CHARTER_SPACE ? [`貸切料金: ${getCharterPriceLabel(reserveState.time)}`] : []),
+      `飲み放題: ${reservation.drink}`,
+      `お名前: ${reservation.name}`
+    ];
+    if (reservation.note) lines.push(`備考: ${reservation.note.slice(0, 200)}`);
+    await liff.sendMessages([{ type: 'text', text: lines.join('\n') }]);
+  } catch (err) {
+    console.warn('公式アカウントのトークへの予約内容の送信に失敗しました（予約は完了しています）', err);
+  }
+}
+
 document.getElementById('confirm-btn')?.addEventListener('click', async () => {
   const lastname = document.getElementById('lastname-input').value.trim();
   const firstname = document.getElementById('firstname-input').value.trim();
@@ -256,6 +281,7 @@ document.getElementById('confirm-btn')?.addEventListener('click', async () => {
     if (!result.success) {
       throw new Error(result.error || '予約に失敗しました');
     }
+    await sendReservationToOfficialChat(reservation);
     showStep(5);
   } catch (err) {
     console.error('予約の送信に失敗しました', err);

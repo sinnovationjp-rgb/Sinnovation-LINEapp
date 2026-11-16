@@ -202,7 +202,7 @@ function doPost(e) {
     NotifyService.send(buildProvisionalMessage_(id, data, approvalUrl));
     sendEmail_(data.email, '【oO SPACE】ご予約を受け付けました', buildProvisionalEmailBody_(data));
     if (data.userId) {
-      const lineOk = LineService.pushProvisional(data.userId, data);
+      const lineOk = LineService.pushProvisional(data.userId, data, id);
       if (!lineOk) {
         NotifyService.send(`⚠️ LINE仮予約受付通知の送信に失敗しました（予約ID ${id}）`);
       }
@@ -645,6 +645,19 @@ function setUserRole(email, role, sessionToken) {
     return { success: true, users: getAllUsersList_() };
   } catch (err) {
     console.error('setUserRole failed', err);
+    return { success: false, error: String(err.message || err) };
+  }
+}
+
+// 管理画面の予約の詳細に表示する、その予約でシステムが自動送信したLINEメッセージの履歴（管理者・閲覧者）
+function getLineMessageLog(id, sessionToken) {
+  try {
+    if (!isAuthorizedViewer_(sessionToken)) {
+      throw new Error('アクセス権がありません');
+    }
+    return { success: true, logs: SheetService.getLineLogs(String(id || '')) };
+  } catch (err) {
+    console.error('getLineMessageLog failed', err);
     return { success: false, error: String(err.message || err) };
   }
 }

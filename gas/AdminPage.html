@@ -119,6 +119,16 @@
   .memo-editor textarea { width: 100%; font: inherit; font-size: 0.85rem; line-height: 1.5; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 10px; resize: vertical; min-height: 90px; }
   .memo-editor .row { display: flex; gap: 6px; justify-content: flex-end; align-items: center; margin-top: 6px; }
   .note-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap; }
+  /* LINE送信履歴（システムが自動で送ったメッセージ。公式LINEのチャット欄には出ないため管理画面に表示する） */
+  .line-log { display: flex; flex-direction: column; gap: 10px; background: #eef2f7; border-radius: 12px; padding: 12px; }
+  .line-log .empty { font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 6px 0; }
+  .line-msg { align-self: flex-start; max-width: 92%; }
+  .line-msg .meta { font-size: 0.7rem; color: var(--text-muted); margin: 0 0 3px 2px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .line-msg .kind { font-weight: 700; color: var(--text); }
+  .line-msg .fail { color: var(--danger); font-weight: 700; }
+  .line-msg .bubble { background: var(--surface); border: 1px solid var(--border); border-radius: 4px 14px 14px 14px; padding: 8px 11px; font-size: 0.82rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .line-msg.is-failed .bubble { border-color: var(--danger); background: var(--danger-soft); }
+  .line-log-hint { font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; margin: 0; }
   .panel-foot { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
   .btn { flex: 1; border: none; border-radius: 10px; padding: 11px 14px; font: inherit; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: filter .15s, background .15s; }
   .btn:hover { filter: brightness(0.96); }
@@ -398,6 +408,11 @@
       <h3 style="display:flex;align-items:center;justify-content:space-between;">スタッフメモ<span id="memo-actions"></span></h3>
       <div id="memo-body"></div>
     </div>
+    <div class="field-group">
+      <h3>LINEで自動送信したメッセージ</h3>
+      <div class="line-log" id="line-log"></div>
+      <p class="line-log-hint">システムが自動で送ったメッセージは公式LINEのチャット欄には表示されないため、ここに残しています。お客様が予約時に送った予約内容とその後のやり取りは、公式LINEのチャット欄で確認できます。</p>
+    </div>
   </div>
   <div class="panel-foot" id="panel-actions"></div>
 </aside>
@@ -599,6 +614,37 @@
     });
   }
 
+  var currentPanelId = null; // 詳細パネルで表示中の予約ID（LINE送信履歴の読み込み結果が別の予約に表示されないようにする）
+
+  // その予約でシステムが自動送信したLINEメッセージの履歴を読み込んで表示する
+  function renderLineLog(r) {
+    var box = document.getElementById('line-log');
+    var id = r['ID'];
+    box.innerHTML = '<div class="empty">読み込み中...</div>';
+    google.script.run.withSuccessHandler(function (res) {
+      if (String(currentPanelId) !== String(id)) return;
+      if (!res || !res.success) {
+        box.innerHTML = '<div class="empty">履歴を読み込めませんでした（' + escapeHtml_(res && res.error || '') + '）</div>';
+        return;
+      }
+      if (!res.logs.length) {
+        box.innerHTML = '<div class="empty">' + (r['LINE UserId']
+          ? 'まだLINEで送ったメッセージはありません（この機能を入れる前に送ったものは残っていません）'
+          : 'LINE未連携の予約のため、LINEでは送っていません') + '</div>';
+        return;
+      }
+      box.innerHTML = res.logs.map(function (log) {
+        return '<div class="line-msg' + (log.success ? '' : ' is-failed') + '">' +
+          '<div class="meta"><span class="kind">' + escapeHtml_(log.kind) + '</span><span>' + escapeHtml_(fmtDateTime(log.sentAt)) + '</span>' +
+          (log.success ? '' : '<span class="fail">送信失敗</span>') + '</div>' +
+          '<div class="bubble">' + escapeHtml_(log.text) + '</div></div>';
+      }).join('');
+    }).withFailureHandler(function (err) {
+      if (String(currentPanelId) !== String(id)) return;
+      box.innerHTML = '<div class="empty">履歴を読み込めませんでした（' + escapeHtml_(err && err.message || err) + '）</div>';
+    }).getLineMessageLog(id, sessionToken);
+  }
+
   function findReservation(id) {
     for (var i = 0; i < reservations.length; i++) {
       if (String(reservations[i]['ID']) === String(id)) return reservations[i];
@@ -609,6 +655,7 @@
   function openPanel(id) {
     var r = findReservation(id);
     if (!r) return;
+    currentPanelId = id;
 
     document.querySelectorAll('#table-body tr').forEach(function (tr) {
       tr.classList.toggle('is-selected', tr.dataset.id === id);
@@ -629,6 +676,7 @@
     document.getElementById('d-created').textContent = fmtDateShort(r['登録日時']);
     document.getElementById('d-note').textContent = r['備考'] || '（備考なし）';
     renderStaffMemo(r);
+    renderLineLog(r);
 
     var actions = document.getElementById('panel-actions');
     if (myRole !== 'admin') {
@@ -808,6 +856,7 @@
   }
 
   function closePanel() {
+    currentPanelId = null;
     document.getElementById('panel').classList.remove('is-open');
     document.getElementById('panel').setAttribute('aria-hidden', 'true');
     document.getElementById('overlay').classList.remove('is-open');

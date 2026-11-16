@@ -5,9 +5,13 @@ const reserveState = {
   people: null,
   time: null,
   space: null,
+  loungeUsage: '通常利用',
   drink: 'あり',
   usageHistory: '初めて'
 };
+
+// 'yyyy-MM-dd' → その日の確定済みラウンジ貸切の時間帯 [{ start, end }]（0時からの分数）。reserve-form.jsが参照する
+const charterMap = {};
 
 // 1件の予約で選べる人数の上限（gas/Code.jsのMAX_HEADCOUNTと同じ）
 const MAX_HEADCOUNT = 40;
@@ -63,8 +67,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const availability = await fetchAvailability();
   const availabilityMap = {};
   const closedMap = {};
-  availability.forEach(({ date, available, closed, closedReason }) => {
+  availability.forEach(({ date, available, closed, closedReason, charters }) => {
     availabilityMap[date] = available;
+    if (Array.isArray(charters) && charters.length) charterMap[date] = charters;
     if (closed) closedMap[date] = closedReason || '定休日';
   });
   const maxDate = availability.length

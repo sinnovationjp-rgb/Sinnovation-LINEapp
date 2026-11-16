@@ -22,6 +22,7 @@
 
     <!-- Step 1: 写真・日時・人数・時間 -->
     <section class="screen is-active" data-screen="1">
+      <a class="back-btn" href="index.html">← トップへ</a>
       <div class="photo-carousel">
         <img class="photo-tile" src="img/bar-counter.jpg" alt="店内バーカウンターの様子">
         <img class="photo-tile" src="img/drinks.jpg" alt="ドリンクメニューの一例">
@@ -74,16 +75,26 @@
         <img class="space-thumb" src="img/lounge-space.jpg" alt="ラウンジ・スペースの様子">
         <div class="space-body">
           <p class="space-title">ラウンジ・スペース <span class="space-badge">貸切可</span></p>
-          <p class="space-desc">「新たな発見と深堀り」がテーマ。テーブルチャージ制（席2,000円／お一人様500円程）。ゆっくり話し込みたい方や、イベント・商談・仲間との集まりにもおすすめです。</p>
+          <p class="space-desc">「新たな発見と深堀り」がテーマ。テーブルチャージ <b class="space-price">1,000円／お一人様</b>。ゆっくり話し込みたい方や、イベント・商談・仲間との集まりにもおすすめです。</p>
+          <p class="space-warning" id="lounge-blocked" hidden></p>
         </div>
         <div class="space-check">✓</div>
       </div>
 
+      <div class="field" id="lounge-usage" hidden>
+        <span class="field-label">ご利用方法（ラウンジ）</span>
+        <div class="option-group">
+          <label><input type="radio" name="loungeUsage" value="通常利用" checked><b>通常利用</b><span>チャージ 1,000円／人</span></label>
+          <label><input type="radio" name="loungeUsage" value="貸切"><b>貸切</b><span id="charter-price"></span></label>
+        </div>
+        <p class="option-hint">貸切料金：18時より前の開始 22,000円／3時間、18時以降の開始 33,000円／3時間</p>
+      </div>
+
       <div class="field">
         <span class="field-label">飲み放題の有無</span>
-        <div class="chip-group">
-          <label><input type="radio" name="drink" value="あり" checked>あり</label>
-          <label><input type="radio" name="drink" value="なし">なし</label>
+        <div class="option-group">
+          <label><input type="radio" name="drink" value="あり" checked><b>あり</b><span>2時間飲み放題 3,000円／人</span></label>
+          <label><input type="radio" name="drink" value="なし"><b>なし</b><span></span></label>
         </div>
       </div>
 

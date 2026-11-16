@@ -1,11 +1,105 @@
 // 予約フローのステップ制御・確認画面組み立て・送信
 
+// ---- ラウンジ貸切（gas/Code.jsのLOUNGE_*/CHARTER_*と同じ。変えるときは両方そろえる） ----
+const LOUNGE_SPACE = 'ラウンジ・スペース';
+const LOUNGE_CHARTER_SPACE = 'ラウンジ・スペース（貸切）';
+const CHARTER_HOURS = 3;
+const CHARTER_EVENING_START_MINUTES = 18 * 60;
+const CHARTER_PRICE_DAYTIME = 22000;
+const CHARTER_PRICE_EVENING = 33000;
+const LOUNGE_NORMAL_STAY_HOURS = 2; // 確定済みの貸切と重なるか判定するときの、通常利用の滞在時間の目安
+
+function timeToMinutes(time) {
+  const m = String(time || '').match(/^(\d{2}):(\d{2})$/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+function minutesToTime(minutes) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+function formatYen(n) {
+  return `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}円`;
+}
+
+// 選んだ開始時刻での貸切料金（例: '33,000円／3時間'）
+function getCharterPriceLabel(time) {
+  const start = timeToMinutes(time);
+  if (start === null) return '';
+  const price = start >= CHARTER_EVENING_START_MINUTES ? CHARTER_PRICE_EVENING : CHARTER_PRICE_DAYTIME;
+  return `${formatYen(price)}／${CHARTER_HOURS}時間`;
+}
+
+// 送信・確認画面に使うスペース名（ラウンジで貸切を選んだ場合は「ラウンジ・スペース（貸切）」）
+function getSelectedSpace() {
+  if (reserveState.space === LOUNGE_SPACE && reserveState.loungeUsage === '貸切') return LOUNGE_CHARTER_SPACE;
+  return reserveState.space;
+}
+
+// 選んだ日時が確定済みのラウンジ貸切と重なっていれば、その貸切の時間帯を返す（重ならなければnull）。
+// 貸切は開始から3時間、通常利用は2時間いるものとして判定する（gas/Code.jsのoverlapsLoungeCharter_と同じ）
+function findBlockingCharter() {
+  const charters = charterMap[reserveState.dateISO] || [];
+  const start = timeToMinutes(reserveState.time);
+  if (start === null) return null;
+  const stay = (reserveState.loungeUsage === '貸切' ? CHARTER_HOURS : LOUNGE_NORMAL_STAY_HOURS) * 60;
+  return charters.find((c) => start < c.end && c.start < start + stay) || null;
+}
+
+// スペース選択画面の表示を、選んだ日時・ご利用方法に合わせて更新する
+function refreshSpaceStep() {
+  const isLounge = reserveState.space === LOUNGE_SPACE;
+  const usageField = document.getElementById('lounge-usage');
+  if (usageField) usageField.hidden = !isLounge;
+  const priceEl = document.getElementById('charter-price');
+  if (priceEl) priceEl.textContent = getCharterPriceLabel(reserveState.time);
+
+  // ラウンジは通常利用・貸切どちらで判定しても重なる場合だけカードごと選べなくする。
+  // 貸切だけ重なる場合（例: 貸切の少し前の時間）は、カードは選べて「次へ」で止める
+  const savedUsage = reserveState.loungeUsage;
+  reserveState.loungeUsage = '通常利用';
+  const normalBlock = findBlockingCharter();
+  reserveState.loungeUsage = savedUsage;
+  const block = isLounge ? findBlockingCharter() : normalBlock;
+
+  const loungeCard = document.querySelector(`.space-card[data-space="${LOUNGE_SPACE}"]`);
+  loungeCard?.classList.toggle('is-disabled', !!normalBlock);
+  if (normalBlock && isLounge) {
+    loungeCard.classList.remove('is-selected');
+    reserveState.space = null;
+  }
+  const warnEl = document.getElementById('lounge-blocked');
+  if (warnEl) {
+    const shown = normalBlock || (isLounge && block);
+    warnEl.hidden = !shown;
+    if (shown) {
+      warnEl.textContent = normalBlock
+        ? `この時間帯は貸切のご予約が入っているため、ラウンジはお選びいただけません（${minutesToTime(normalBlock.start)}〜${minutesToTime(normalBlock.end)}）`
+        : `${minutesToTime(block.start)}〜${minutesToTime(block.end)}に貸切のご予約が入っているため、この開始時刻では貸切をお選びいただけません`;
+    }
+  }
+  if (!reserveState.space) {
+    if (usageField) usageField.hidden = true;
+  }
+
+  const ready = !!reserveState.space && !(reserveState.space === LOUNGE_SPACE && block);
+  document.getElementById('step2-next')?.toggleAttribute('disabled', !ready);
+}
+
 document.querySelectorAll('.space-card').forEach((card) => {
   card.addEventListener('click', () => {
+    if (card.classList.contains('is-disabled')) return;
     document.querySelectorAll('.space-card').forEach((el) => el.classList.remove('is-selected'));
     card.classList.add('is-selected');
     reserveState.space = card.dataset.space;
-    document.getElementById('step2-next')?.removeAttribute('disabled');
+    refreshSpaceStep();
+  });
+});
+
+document.querySelectorAll('input[name="loungeUsage"]').forEach((el) => {
+  el.addEventListener('change', () => {
+    reserveState.loungeUsage = el.value;
+    refreshSpaceStep();
   });
 });
 
@@ -26,6 +120,7 @@ function showStep(n) {
     el.classList.toggle('is-active', node === n);
     el.classList.toggle('is-done', node < n);
   });
+  if (n === 2) refreshSpaceStep();
   if (n === 4) buildSummary();
   window.scrollTo({ top: 0 });
 }
@@ -104,8 +199,9 @@ function buildSummary() {
     ['来店日', reserveState.dateLabel],
     ['時間', reserveState.time],
     ['人数', `${reserveState.people}名`],
-    ['スペース', reserveState.space],
-    ['飲み放題', reserveState.drink],
+    ['スペース', getSelectedSpace()],
+    ...(getSelectedSpace() === LOUNGE_CHARTER_SPACE ? [['貸切料金', getCharterPriceLabel(reserveState.time)]] : []),
+    ['飲み放題', reserveState.drink === 'あり' ? 'あり（2時間 3,000円／人）' : reserveState.drink],
     ['ご利用履歴', reserveState.usageHistory],
     ['お名前（カタカナ）', `${lastname} ${firstname}`],
     ['電話番号', phone],
@@ -128,7 +224,7 @@ document.getElementById('confirm-btn')?.addEventListener('click', async () => {
   const reservation = {
     datetime: `${reserveState.dateISO}T${reserveState.time}:00`,
     headcount: reserveState.people,
-    space: reserveState.space,
+    space: getSelectedSpace(),
     drink: reserveState.drink,
     usageHistory: reserveState.usageHistory,
     name: `${lastname} ${firstname}`,

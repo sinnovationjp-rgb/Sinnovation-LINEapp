@@ -56,6 +56,64 @@ function isValidHeadcount_(value) {
   return Number.isInteger(n) && n >= 1 && n <= MAX_HEADCOUNT;
 }
 
+// ---- ラウンジ貸切 ----
+// 貸切はスペース列に「ラウンジ・スペース（貸切）」として記録する（承認画面・管理画面・通知・カレンダーにそのまま表示される）。
+// 料金は開始時刻で決める（18:00より前の開始は22,000円、18:00以降の開始は33,000円。いずれも3時間）。
+// frontend/js/reserve-form.js にも同じ定数がある（変えるときは両方そろえる）
+const LOUNGE_SPACE = 'ラウンジ・スペース';
+const LOUNGE_CHARTER_SPACE = 'ラウンジ・スペース（貸切）';
+const CHARTER_HOURS = 3;
+const CHARTER_EVENING_START_MINUTES = 18 * 60;
+const CHARTER_PRICE_DAYTIME = 22000;
+const CHARTER_PRICE_EVENING = 33000;
+// 確定済みの貸切と重なるかを判定するときの、通常利用（ラウンジ）の滞在時間の目安（2時間飲み放題に合わせる）
+const LOUNGE_NORMAL_STAY_HOURS = 2;
+
+function isLoungeCharter_(space) {
+  return String(space || '').trim() === LOUNGE_CHARTER_SPACE;
+}
+
+function isLoungeSpace_(space) {
+  const value = String(space || '').trim();
+  return value === LOUNGE_SPACE || value === LOUNGE_CHARTER_SPACE;
+}
+
+// 予約日時（Dateオブジェクト、または 'yyyy-MM-ddTHH:mm(:ss)' 形式の文字列）の時刻を0時からの分数で返す。取れなければnull
+function getStartMinutes_(datetime) {
+  if (!datetime) return null;
+  if (datetime instanceof Date) {
+    if (isNaN(datetime.getTime())) return null;
+    const hm = Utilities.formatDate(datetime, 'Asia/Tokyo', 'HH:mm').split(':').map(Number);
+    return hm[0] * 60 + hm[1];
+  }
+  const m = String(datetime).match(/T(\d{2}):(\d{2})/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+// 貸切料金の表示用文字列（例: '33,000円／3時間（18時以降の開始）'）。貸切でなければ空文字
+function getCharterPriceLabel_(space, datetime) {
+  if (!isLoungeCharter_(space)) return '';
+  const start = getStartMinutes_(datetime);
+  if (start === null) return '';
+  const evening = start >= CHARTER_EVENING_START_MINUTES;
+  const price = evening ? CHARTER_PRICE_EVENING : CHARTER_PRICE_DAYTIME;
+  return `${String(price).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}円／${CHARTER_HOURS}時間（${evening ? '18時以降' : '18時より前'}の開始）`;
+}
+
+// 通知文に差し込む「貸切料金」の行（貸切でなければ空配列）
+function buildCharterPriceLines_(space, datetime) {
+  const label = getCharterPriceLabel_(space, datetime);
+  return label ? [`貸切料金: ${label}`] : [];
+}
+
+// ラウンジの新しい予約（開始startMinutes）が、確定済みの貸切（開始時刻の分数の配列）と重なるか。
+// 貸切は開始から3時間、通常利用は2時間いるものとして判定する
+function overlapsLoungeCharter_(space, startMinutes, charterStarts) {
+  if (!isLoungeSpace_(space) || startMinutes === null) return false;
+  const stay = (isLoungeCharter_(space) ? CHARTER_HOURS : LOUNGE_NORMAL_STAY_HOURS) * 60;
+  return charterStarts.some((s) => startMinutes < s + CHARTER_HOURS * 60 && s < startMinutes + stay);
+}
+
 // 定休日（日曜・祝日）の判定。祝日一覧の取得に失敗した場合は、予約受付を止めないよう日曜のみで判定する
 function getHolidayMap_(startDate, endDate) {
   try {
@@ -124,7 +182,22 @@ function doPost(e) {
   }
 
   try {
-    const id = withReservationLock_(() => SheetService.addProvisionalReservation(data));
+    const id = withReservationLock_(() => {
+      // 確定済みのラウンジ貸切と時間が重なるラウンジの予約は受け付けない（フォームでも選べないようにしているが、念のためサーバーでも確認する）
+      if (isLoungeSpace_(data.space) && /^\d{4}-\d{2}-\d{2}$/.test(reserveDateStr)) {
+        const charterStarts = SheetService.getConfirmedReservationsForDate(reserveDateStr)
+          .filter((r) => isLoungeCharter_(r['スペース']))
+          .map((r) => getStartMinutes_(r['予約日時']))
+          .filter((m) => m !== null);
+        if (overlapsLoungeCharter_(data.space, getStartMinutes_(data.datetime), charterStarts)) {
+          return null;
+        }
+      }
+      return SheetService.addProvisionalReservation(data);
+    });
+    if (!id) {
+      return jsonResponse_({ success: false, error: 'この時間帯はラウンジの貸切のご予約が入っているため、ラウンジはお選びいただけません。時間かスペースを変えてお試しください' });
+    }
     const approvalUrl = getWebAppUrl_() + '?page=approval&id=' + id;
     NotifyService.send(buildProvisionalMessage_(id, data, approvalUrl));
     sendEmail_(data.email, '【oO SPACE】ご予約を受け付けました', buildProvisionalEmailBody_(data));
@@ -852,6 +925,7 @@ function buildProvisionalMessage_(id, data, approvalUrl) {
     `日時: ${data.datetime ? formatDateTimeForDisplay_(data.datetime) : '未入力'}`,
     `人数: ${data.headcount ? data.headcount + '名' : '未入力'}`,
     `スペース: ${data.space || '未入力'}`,
+    ...buildCharterPriceLines_(data.space, data.datetime),
     `飲み放題: ${data.drink || '未入力'}`,
     `ご利用履歴: ${data.usageHistory || '未入力'}`,
     `氏名: ${data.name || '未入力'}`,
@@ -866,6 +940,7 @@ function buildConfirmedMessage_(reservation) {
     `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
     `人数: ${reservation['人数'] || ''}名`,
     `スペース: ${reservation['スペース'] || ''}`,
+    ...buildCharterPriceLines_(reservation['スペース'], reservation['予約日時']),
     `飲み放題: ${reservation['飲み放題'] || ''}`,
     `氏名: ${reservation['氏名（カタカナ）'] || ''}`
   ].join('\n');
@@ -920,6 +995,7 @@ function buildProvisionalEmailBody_(data) {
     `日時: ${data.datetime ? formatDateTimeForDisplay_(data.datetime) : '未入力'}`,
     `人数: ${data.headcount ? data.headcount + '名' : '未入力'}`,
     `スペース: ${data.space || '未入力'}`,
+    ...buildCharterPriceLines_(data.space, data.datetime),
     `飲み放題: ${data.drink || '未入力'}`,
     '',
     'ご不明な点がございましたら店舗までお問い合わせください。'
@@ -933,6 +1009,7 @@ function buildConfirmedEmailBody_(reservation) {
     `日時: ${formatDateTimeForDisplay_(reservation['予約日時'])}`,
     `人数: ${reservation['人数'] || ''}名`,
     `スペース: ${reservation['スペース'] || ''}`,
+    ...buildCharterPriceLines_(reservation['スペース'], reservation['予約日時']),
     `飲み放題: ${reservation['飲み放題'] || ''}`,
     '',
     'キャンセルをご希望の場合は、LINE公式アカウントのメッセージにてお知らせください。',

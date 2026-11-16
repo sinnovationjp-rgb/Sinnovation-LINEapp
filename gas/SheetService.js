@@ -140,6 +140,7 @@ var SheetService = (function () {
     today.setHours(0, 0, 0, 0);
 
     const bookedHeadcount = {};
+    const charterStarts = {}; // 'yyyy-MM-dd' → 確定済みのラウンジ貸切の開始時刻（0時からの分数）の配列
     try {
       const sheet = getSheet_();
       const values = sheet.getDataRange().getValues();
@@ -151,6 +152,10 @@ var SheetService = (function () {
         if (!dateStr) continue;
         const headcount = Number(obj['人数']) || 0;
         bookedHeadcount[dateStr] = (bookedHeadcount[dateStr] || 0) + headcount;
+        if (isLoungeCharter_(obj['スペース'])) {
+          const start = getStartMinutes_(obj['予約日時']);
+          if (start !== null) (charterStarts[dateStr] = charterStarts[dateStr] || []).push(start);
+        }
       }
     } catch (err) {
       console.error('SheetService.getAvailability: 予約データの取得に失敗しました', err);
@@ -171,7 +176,9 @@ var SheetService = (function () {
         date: dateStr,
         available: !closedReason && total < DAILY_CAPACITY,
         closed: !!closedReason,
-        closedReason: closedReason || ''
+        closedReason: closedReason || '',
+        // 確定済みのラウンジ貸切の時間帯（予約フォームが、重なる時間のラウンジを選べなくするのに使う）
+        charters: (charterStarts[dateStr] || []).map((m) => ({ start: m, end: m + CHARTER_HOURS * 60 }))
       });
     }
     return result;
